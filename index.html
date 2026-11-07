@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Ramy Sabry Universe ❤️ عالمك الخاص</title>
+  <meta name="description" content="Ramy Sabry Universe — تجربة موسيقية تفاعلية مصممة خصيصًا لمحبّات رامي صبري." />
+  <meta name="theme-color" content="#07050d" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Reem+Kufi:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/base.css" />
+  <link rel="stylesheet" href="css/auth.css" />
+</head>
+<body class="auth-body">
+  <div class="bg-aurora"></div>
+
+  <!-- ============ 1) الشاشة الأولى ============ -->
+  <section class="screen is-active" id="screen-splash" aria-labelledby="splash-title">
+    <div class="splash-bg" id="splash-bg"></div>
+    <svg class="stage-art" id="stage-art" viewBox="0 0 800 600" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs>
+        <linearGradient id="beamG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6c068" stop-opacity=".55" /><stop offset="1" stop-color="#e6c068" stop-opacity="0" /></linearGradient>
+        <linearGradient id="beamP" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f472b6" stop-opacity=".5" /><stop offset="1" stop-color="#f472b6" stop-opacity="0" /></linearGradient>
+        <linearGradient id="beamV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a78bfa" stop-opacity=".55" /><stop offset="1" stop-color="#a78bfa" stop-opacity="0" /></linearGradient>
+        <radialGradient id="floorG" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#a78bfa" stop-opacity=".55" /><stop offset="1" stop-color="#a78bfa" stop-opacity="0" /></radialGradient>
+      </defs>
+      <polygon class="beam b1" points="110,0 230,0 430,600 10,600" fill="url(#beamG)" />
+      <polygon class="beam b2" points="570,0 690,0 800,600 380,600" fill="url(#beamP)" />
+      <polygon class="beam b3" points="320,0 480,0 580,600 220,600" fill="url(#beamV)" />
+      <ellipse cx="400" cy="566" rx="330" ry="38" fill="url(#floorG)" />
+      <g stroke="#f6dc9b" stroke-width="5" fill="none" stroke-linecap="round" opacity=".92">
+        <line x1="400" y1="322" x2="400" y2="548" />
+        <path d="M338 552 H462" />
+        <path d="M360 292 a40 40 0 0 0 80 0" />
+      </g>
+      <rect x="377" y="226" width="46" height="92" rx="23" fill="#1b0a3a" stroke="#f6dc9b" stroke-width="4" />
+      <g stroke="#f6dc9b" stroke-width="2" opacity=".5"><line x1="381" y1="248" x2="419" y2="248" /><line x1="381" y1="262" x2="419" y2="262" /><line x1="381" y1="276" x2="419" y2="276" /></g>
+    </svg>
+    <div class="splash-shade"></div>
+
+    <div class="splash-content">
+      <p class="eyebrow">Ramy Sabry Universe</p>
+      <h1 id="splash-title" class="splash-title"><span class="gold-text">أهلًا بيكي في عالمك الخاص</span> <span class="heart-beat">❤️</span></h1>
+      <p class="splash-sub">مكان صغير اتعمل علشانك… فيه الموسيقى اللي بتحبيها وحاجات حلوة مستنياكي.</p>
+      <button class="btn btn-primary btn-lg cta-pulse" id="enter-btn" type="button"><i data-icon="mic"></i> ادخلي عالم رامي</button>
+      <p class="splash-foot" id="splash-foot"></p>
+    </div>
+  </section>
+
+  <!-- ============ 2) الدخول / إنشاء حساب / استعادة كلمة المرور ============ -->
+  <section class="screen" id="screen-auth" aria-labelledby="auth-title" hidden>
+    <div class="splash-shade"></div>
+    <div class="auth-wrap">
+      <div class="glass auth-card">
+        <button class="btn btn-ghost btn-sm auth-back" id="auth-back" type="button"><i data-icon="arrow-left"></i> رجوع</button>
+        <div class="auth-logo"><span class="logo-dot"><i data-icon="heart"></i></span></div>
+        <h2 id="auth-title" class="center gold-text">أول خطوة لعالمك</h2>
+
+        <div class="tabs" role="tablist" id="auth-tabs">
+          <button class="tab is-active" role="tab" data-tab="login" aria-selected="true" type="button">تسجيل الدخول</button>
+          <button class="tab" role="tab" data-tab="signup" aria-selected="false" type="button">حساب جديد</button>
+        </div>
+
+        <div class="auth-msg" id="auth-msg" role="alert" hidden></div>
+
+        <!-- تسجيل الدخول -->
+        <form id="form-login" class="auth-form" novalidate>
+          <label class="field"><span>البريد الإلكتروني</span>
+            <input class="input" type="email" name="email" dir="ltr" autocomplete="email" inputmode="email" placeholder="you@example.com" required />
+          </label>
+          <label class="field"><span>كلمة المرور</span>
+            <div class="input-wrap"><input class="input" type="password" name="password" dir="ltr" autocomplete="current-password" placeholder="••••••••" required /><button class="toggle-eye" type="button" aria-label="إظهار كلمة المرور"></button></div>
+          </label>
+          <button class="btn btn-primary btn-lg" style="width:100%" type="submit">دخول</button>
+          <button class="link-btn" type="button" id="to-forgot">نسيتي كلمة المرور؟</button>
+        </form>
+
+        <!-- حساب جديد -->
+        <form id="form-signup" class="auth-form" novalidate hidden>
+          <label class="field"><span>اسمك</span>
+            <input class="input" type="text" name="name" maxlength="40" autocomplete="name" placeholder="اكتبي اسمك اللي هيظهر في عالمك" required />
+          </label>
+          <label class="field"><span>البريد الإلكتروني</span>
+            <input class="input" type="email" name="email" dir="ltr" autocomplete="email" inputmode="email" placeholder="you@example.com" required />
+          </label>
+          <label class="field"><span>كلمة المرور</span>
+            <div class="input-wrap"><input class="input" type="password" name="password" dir="ltr" autocomplete="new-password" placeholder="٦ حروف على الأقل" minlength="6" required /><button class="toggle-eye" type="button" aria-label="إظهار كلمة المرور"></button></div>
+          </label>
+          <label class="field"><span>تأكيد كلمة المرور</span>
+            <div class="input-wrap"><input class="input" type="password" name="confirm" dir="ltr" autocomplete="new-password" placeholder="اكتبيها تاني" required /><button class="toggle-eye" type="button" aria-label="إظهار كلمة المرور"></button></div>
+          </label>
+          <button class="btn btn-primary btn-lg" style="width:100%" type="submit">إنشاء الحساب</button>
+        </form>
+
+        <!-- استعادة كلمة المرور -->
+        <form id="form-forgot" class="auth-form" novalidate hidden>
+          <p class="center">اكتبي بريدك وهنبعتلك رابط تعيّني بيه كلمة مرور جديدة.</p>
+          <label class="field"><span>البريد الإلكتروني</span>
+            <input class="input" type="email" name="email" dir="ltr" autocomplete="email" inputmode="email" placeholder="you@example.com" required />
+          </label>
+          <button class="btn btn-primary btn-lg" style="width:100%" type="submit">ابعتي الرابط</button>
+          <button class="link-btn" type="button" id="to-login">رجوع لتسجيل الدخول</button>
+        </form>
+
+        <!-- كلمة مرور جديدة (بعد الضغط على رابط الإيميل) -->
+        <form id="form-reset" class="auth-form" novalidate hidden>
+          <p class="center">اختاري كلمة مرور جديدة لحسابك.</p>
+          <label class="field"><span>كلمة المرور الجديدة</span>
+            <div class="input-wrap"><input class="input" type="password" name="password" dir="ltr" autocomplete="new-password" minlength="6" required /><button class="toggle-eye" type="button" aria-label="إظهار كلمة المرور"></button></div>
+          </label>
+          <label class="field"><span>تأكيد كلمة المرور</span>
+            <div class="input-wrap"><input class="input" type="password" name="confirm" dir="ltr" autocomplete="new-password" required /><button class="toggle-eye" type="button" aria-label="إظهار كلمة المرور"></button></div>
+          </label>
+          <button class="btn btn-primary btn-lg" style="width:100%" type="submit">حفظ كلمة المرور</button>
+        </form>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3) أنيميشن الترحيب بعد الدخول ============ -->
+  <section class="screen" id="screen-welcome" aria-live="polite" hidden>
+    <div class="welcome-glow"></div>
+    <div class="welcome-stars" aria-hidden="true"></div>
+    <div class="welcome-content">
+      <p class="w-line w1">الأضواء بتنوّر…</p>
+      <h1 class="w-line w2"><span class="gold-text">أخيرًا وصلتي لعالمك يا <span id="welcome-name"></span></span> <span class="heart-beat">❤️</span></h1>
+      <p class="w-line w3">كل حاجة هنا اتعملت علشانك.</p>
+      <button class="btn btn-primary btn-lg w-line w4" id="welcome-enter" type="button"><i data-icon="sparkles"></i> ادخلي الموقع</button>
+    </div>
+  </section>
+
+  <script src="js/config.js"></script>
+  <script src="js/core/icons.js"></script>
+  <script src="js/core/utils.js"></script>
+  <script src="js/core/api.js"></script>
+  <script src="js/core/fx.js"></script>
+  <script src="js/core/ui.js"></script>
+  <script src="js/services/auth.js"></script>
+  <script src="js/services/data.js"></script>
+  <script src="js/pages/auth-page.js"></script>
+</body>
+</html>
