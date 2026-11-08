@@ -316,30 +316,11 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     renderSet(); save();
   });
 
-  /* ---- مغني على المسرح (رسمة SVG مبسّطة، بتتحرك لما الأغنية تشتغل) ---- */
-  function singerSVG(name, img) {
+  /* ---- المغني على المسرح: صورته مقصوصة (img/singer.png)، بتتمايل لما الأغنية تشتغل ---- */
+  function singerSVG(name) {
     return '<div class="stage-singer" aria-hidden="true">' +
       '<span class="note n1">♪</span><span class="note n2">♫</span><span class="note n3">♪</span>' +
-      '<svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg" role="img">' +
-      '<ellipse cx="100" cy="288" rx="70" ry="9" fill="rgba(0,0,0,0.45)"/>' +
-      '<g class="sg-body">' +
-      '<path d="M78 170 L72 282 H92 L100 200 L108 282 H128 L122 170 Z" fill="#14101f"/>' +
-      '<path d="M70 98 Q100 84 130 98 L138 178 H62 Z" fill="#d9c7a6" stroke="#b39a6b" stroke-width="2"/>' +
-      '<path d="M88 94 L100 150 L112 94 Z" fill="#111"/>' +
-      '<path d="M88 94 L100 150 M112 94 L100 150" stroke="#b39a6b" stroke-width="2" opacity="0.8"/>' +
-      '<g class="sg-arm-l"><path d="M72 104 Q48 138 62 168" fill="none" stroke="#d9c7a6" stroke-width="15" stroke-linecap="round"/><circle cx="62" cy="170" r="8" fill="#e8b48f"/></g>' +
-      '<g class="sg-arm-r"><path d="M128 104 Q146 124 120 80" fill="none" stroke="#d9c7a6" stroke-width="15" stroke-linecap="round"/><circle cx="119" cy="76" r="8" fill="#e8b48f"/>' +
-      '<rect x="114" y="52" width="9" height="22" rx="4" fill="#2a2a38" stroke="#e6c068" stroke-width="1.5"/><circle cx="118.5" cy="48" r="8" fill="#9ca3af"/></g>' +
-      (img
-        ? '<g class="sg-head"><defs><clipPath id="sg-clip"><circle cx="100" cy="62" r="34"/></clipPath></defs>' +
-          '<circle cx="100" cy="62" r="37" fill="#e6c068"/>' +
-          '<image href="' + esc(img) + '" x="62" y="24" width="76" height="76" preserveAspectRatio="xMidYMin slice" clip-path="url(#sg-clip)"/>' +
-          '<circle cx="100" cy="62" r="34" fill="none" stroke="#1d1230" stroke-width="2"/></g>'
-        : '<g class="sg-head"><circle cx="100" cy="64" r="26" fill="#e8b48f"/>' +
-          '<path d="M74 60 Q76 32 100 34 Q124 32 126 60 Q112 46 100 48 Q88 46 74 60 Z" fill="#1a120d"/>' +
-          '<circle cx="91" cy="66" r="2.4" fill="#2a1a12"/><circle cx="109" cy="66" r="2.4" fill="#2a1a12"/>' +
-          '<ellipse class="sg-mouth" cx="100" cy="79" rx="6" ry="3" fill="#7a2a2a"/></g>') +
-      '</g></svg><div class="stage-singer-name">' + esc(name) + '</div></div>';
+      '<img src="img/singer.png" alt="" draggable="false" onerror="this.parentNode.hidden=true" /></div>';
   }
 
   /* ---- تعليقات "طيّر": بتطير في مسار عشوائي (بنفس البذرة عند الكل لو جاية من الغرفة) ---- */
@@ -377,7 +358,7 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     ov.className = "stage theme-" + st.theme;
     ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "وضع المسرح");
     ov.innerHTML =
-      '<div class="stage-beams" aria-hidden="true"><i></i><i></i><i></i></div>' + singerSVG(a.name, "img/singer-face.jpg") + '<div class="curtain l"></div><div class="curtain r"></div>' +
+      '<div class="stage-beams" aria-hidden="true"><i></i><i></i><i></i></div>' + singerSVG(a.name) + '<div class="curtain l"></div><div class="curtain r"></div>' +
       '<button type="button" class="btn btn-icon stage-x" aria-label="خروج من المسرح">' + RSU.icon("x") + "</button>" +
       '<div class="stage-center"><h2 class="gold-text">' + esc(c.title) + "</h2><p>" + esc(a.name) + "</p>" +
       (st.message && role !== "guest" ? '<p class="stage-msg">“' + esc(st.message) + "”</p>" : "") +
