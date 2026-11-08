@@ -319,6 +319,30 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
   /* ---- وضع المسرح: فردي / مضيفة / ضيفة ---- */
   const EMO = ["❤️", "🔥", "👏", "🎶", "😍", "🎤"];
   const songsOf = (ids) => ids.map(songOf).filter(Boolean);
+  /* ---- لوحة التعليقات + ملخص الحفلة ---- */
+  const QUICK = ["صوته حلو 😍", "أحلى أغنية 🔥", "كمّلوا 👏", "❤️"];
+  function chatHtml(host) {
+    return '<aside class="stage-chat" hidden aria-label="التعليقات"><div class="sc-tabs"><button type="button" class="on" data-tab="cur">الأغنية الحالية</button><button type="button" data-tab="all">كل التعليقات</button></div>' +
+      '<div class="sc-pin" id="sc-pin" hidden></div><ol class="sc-list" id="sc-list" aria-live="polite"></ol>' +
+      '<div class="sc-quick">' + QUICK.map((t) => '<button type="button" data-q="' + t + '">' + t + "</button>").join("") + "</div>" +
+      '<div class="sc-form"><input class="input" id="sc-in" maxlength="140" autocomplete="off" aria-label="تعليق" /><button type="button" class="btn btn-primary btn-sm" id="sc-send">إرسال</button></div>' +
+      (host ? '<div class="sc-host"><button type="button" class="btn btn-sm" id="sc-lock">قفل التعليقات</button></div>' : "") + "</aside>";
+  }
+  function showSummary(items, concertTitle) {
+    const by = new Map();
+    items.forEach((m) => { if (!by.has(m.song_id)) by.set(m.song_id, []); by.get(m.song_id).push(m); });
+    let html = '<h3>ملخص الحفلة 🎤</h3><p class="hint">التعليقات دي مش محفوظة — انسخيها لو عايزة تحتفظي بيها.</p><div class="cx-sum">', txt = concertTitle + "\n";
+    by.forEach((arr, id) => {
+      const sg = songOf(id), name = sg ? sg.title : "—";
+      html += "<h4>" + esc(name) + "</h4><ul>" + arr.map((m) => "<li><b>" + esc(m.name) + ":</b> " + esc(m.body) + "</li>").join("") + "</ul>";
+      txt += "\n" + name + "\n" + arr.map((m) => "- " + m.name + ": " + m.body).join("\n") + "\n";
+    });
+    html += '</div><div class="row" style="margin-top:14px;gap:10px"><button type="button" class="btn btn-primary" id="sum-copy">نسخ الملخص</button><button type="button" class="btn" data-close>تمام</button></div>';
+    const m = ui.modal(html);
+    m.el.querySelector("#sum-copy").addEventListener("click", async () => {
+      try { await navigator.clipboard.writeText(txt); ui.toast("اتنسخ الملخص ✨", "success"); } catch (e) { ui.toast("ماقدرناش ننسخ، حدّديه وانسخيه يدويًا.", "error"); }
+    });
+  }
   function openStage(o) {
     o = o || { role: "solo" };
     const role = o.role, list = o.list || songsOf(st.setlist), room = role !== "solo";
@@ -336,8 +360,8 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       '<div class="stage-count" id="sg-count" aria-live="assertive"></div></div>' +
       '<div class="stage-now" hidden><h3 id="sg-title"></h3><ol id="sg-list">' + list.map((s) => '<li data-id="' + s.id + '">' + esc(s.title) + "</li>").join("") + "</ol>" +
       (room ? '<div class="stage-emojis">' + EMO.map((e) => '<button type="button" class="btn btn-icon sm" data-emo="' + e + '" aria-label="رد فعل ' + e + '">' + e + "</button>").join("") + "</div>" : "") +
-      '<div class="row"><button type="button" class="btn btn-icon" id="sg-toggle" aria-label="تشغيل / إيقاف">' + RSU.icon("pause") + "</button>" +
-      (role !== "guest" ? '<button type="button" class="btn btn-icon" id="sg-next" aria-label="التالية">' + RSU.icon("skip-forward") + "</button>" : "") + "</div></div>";
+      '<div class="row">' + (room ? '<button type="button" class="btn btn-icon" id="sg-chat" aria-label="التعليقات">💬<i class="sc-dot" hidden></i></button>' : "") + '<button type="button" class="btn btn-icon" id="sg-toggle" aria-label="تشغيل / إيقاف">' + RSU.icon("pause") + "</button>" +
+      (role !== "guest" ? '<button type="button" class="btn btn-icon" id="sg-next" aria-label="التالية">' + RSU.icon("skip-forward") + "</button>" : "") + "</div></div>" + (room ? chatHtml(role === "host") : "");
     document.body.appendChild(ov);
     document.body.style.overflow = "hidden";
     RSU.hydrateIcons(ov);
@@ -345,14 +369,88 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     let timers = [], unsub = null, lastId = null, opened = false, rx = 0, hostLive = false, lastIdx = -1, lastPlaying = null;
     const CD = RSU.data.concert;
 
+    /* ---- تعليقات منظمة (مربوطة بالأغنية) ---- */
+    const chat = { items: [], ids: new Set(), hidden: new Set(), pinned: null, open: true, muted: false, cx: 0, tab: "cur", unread: 0, mutedIds: new Set() };
+    const curSong = () => { const S = RSU.player.state; return S.queue[S.index] || null; };
+    const hhmm = (t) => new Date(t).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
+    function renderChat() {
+      if (!room || !q(".stage-chat")) return;
+      const cur = curSong(), host = role === "host";
+      const show = chat.items.filter((m) => !chat.hidden.has(m.id) && (chat.tab === "all" || (cur && m.song_id === cur.id)));
+      let h = "", last = null;
+      show.forEach((m) => {
+        if (chat.tab === "all" && m.song_id !== last) { last = m.song_id; const sg = songOf(m.song_id); h += '<li class="sc-head">' + esc(sg ? sg.title : "—") + "</li>"; }
+        const mu = chat.mutedIds.has(m.uid);
+        h += '<li class="sc-item' + (m.mine ? " mine" : "") + '"><b>' + esc(m.name) + "</b><time>" + hhmm(m.created_at) + "</time><p>" + esc(m.body) + "</p>" +
+          (host ? '<span class="sc-mod"><button type="button" data-pin="' + m.id + '" aria-label="تثبيت">📌</button><button type="button" data-del="' + m.id + '" aria-label="حذف">🗑</button>' +
+            (m.mine || !m.uid ? "" : '<button type="button" data-mute="' + m.uid + '" aria-label="' + (mu ? "فك الكتم" : "كتم") + '">' + (mu ? "🔊" : "🔇") + "</button>") + "</span>" : "") + "</li>";
+      });
+      const list = q("#sc-list"), stick = list.scrollTop + list.clientHeight >= list.scrollHeight - 30;
+      list.innerHTML = h || '<li class="hint">لسه مفيش تعليقات' + (chat.tab === "cur" ? " على الأغنية دي" : "") + ".</li>";
+      if (stick) list.scrollTop = list.scrollHeight;
+      const pin = q("#sc-pin");
+      pin.hidden = !chat.pinned;
+      if (chat.pinned) pin.innerHTML = "📌 <b>" + esc(chat.pinned.name) + ":</b> " + esc(chat.pinned.body);
+      const can = host || (chat.open && !chat.muted);
+      q("#sc-in").disabled = !can; q("#sc-send").disabled = !can;
+      q("#sc-in").placeholder = can ? "اكتبي تعليق (١٤٠ حرف)…" : chat.muted ? "المضيفة قفلت التعليقات عندك" : "التعليقات مقفولة دلوقتي";
+      if (host) q("#sc-lock").textContent = chat.open ? "قفل التعليقات" : "فتح التعليقات";
+    }
+    function addComments(arr) {
+      let n = 0;
+      arr.forEach((m) => { if (chat.ids.has(m.id)) return; chat.ids.add(m.id); chat.items.push(m); if (!m.mine) n++; });
+      chat.items.sort((x, y) => x.id - y.id);
+      if (n && q(".stage-chat").hidden) { chat.unread += n; q(".sc-dot").hidden = false; }
+      renderChat();
+    }
+    async function sendComment(text) {
+      const cur = curSong(); text = String(text || "").trim();
+      if (!cur || !text) return;
+      try {
+        const m = await CD.comment(o.code, { body: text, song_id: cur.id });
+        addComments([Object.assign({ name: ctx.profile.display_name, mine: true }, m)]);
+        q("#sc-in").value = "";
+      } catch (err) { ui.toast(RSU.humanError(err), "error"); }
+    }
+    if (room) {
+      const panel = q(".stage-chat");
+      q("#sg-chat").addEventListener("click", () => {
+        panel.hidden = !panel.hidden;
+        if (!panel.hidden) { chat.unread = 0; q(".sc-dot").hidden = true; renderChat(); q("#sc-in").focus(); }
+      });
+      panel.addEventListener("click", async (e) => {
+        const t = e.target.closest("button");
+        if (!t) return;
+        try {
+          if (t.dataset.tab) { chat.tab = t.dataset.tab; panel.querySelectorAll("[data-tab]").forEach((x) => x.classList.toggle("on", x === t)); renderChat(); }
+          else if (t.id === "sc-send") sendComment(q("#sc-in").value);
+          else if (t.dataset.q) sendComment(t.dataset.q);
+          else if (t.dataset.pin) {
+            const id = +t.dataset.pin, same = chat.pinned && chat.pinned.id === id;
+            await CD.pin(o.code, id, !same);
+            const m = chat.items.find((x) => x.id === id);
+            chat.pinned = same || !m ? null : { id, name: m.name, body: m.body }; renderChat();
+          }
+          else if (t.dataset.del) { const id = +t.dataset.del; await CD.removeComment(o.code, id); chat.hidden.add(id); if (chat.pinned && chat.pinned.id === id) chat.pinned = null; renderChat(); }
+          else if (t.dataset.mute) { const on = !chat.mutedIds.has(t.dataset.mute); await CD.mute(o.code, t.dataset.mute, on); if (on) chat.mutedIds.add(t.dataset.mute); else chat.mutedIds.delete(t.dataset.mute); renderChat(); }
+          else if (t.id === "sc-lock") { await CD.setComments(o.code, !chat.open); chat.open = !chat.open; renderChat(); }
+        } catch (err) { ui.toast(RSU.humanError(err), "error"); }
+      });
+      q("#sc-in").addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") sendComment(q("#sc-in").value); });
+    }
+
     const onKey = (e) => { if (e.key === "Escape") close(); };
+    let closed = false;
     function close() {
+      if (closed) return; closed = true;
+      const summary = room ? chat.items.filter((m) => !chat.hidden.has(m.id)) : [];
       timers.forEach(clearInterval); if (unsub) unsub();
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
       if (room) CD.leave(o.code).catch(() => {});
       if (RSU.player.state.playing) RSU.player.toggle();
       ov.remove();
+      if (summary.length) showSummary(summary, c.title);
     }
     function openCurtains() {
       if (opened) return; opened = true;
@@ -400,7 +498,7 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       if (cur) {
         q("#sg-title").textContent = cur.title;
         ov.querySelectorAll("#sg-list li").forEach((li) => li.classList.toggle("on", li.dataset.id === cur.id));
-        if (cur.id !== lastId) { lastId = cur.id; if (opened) RSU.fx.burst(innerWidth / 2, innerHeight / 3, 22); }
+        if (cur.id !== lastId) { lastId = cur.id; renderChat(); if (opened) RSU.fx.burst(innerWidth / 2, innerHeight / 3, 22); }
       }
       if (role === "host" && hostLive && (S.index !== lastIdx || !!S.playing !== lastPlaying)) { lastIdx = S.index; lastPlaying = !!S.playing; pushSync(); }
     });
@@ -408,10 +506,15 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     if (room) {
       async function poll() {
         let r;
-        try { r = await CD.room(o.code, rx); }
+        try { r = await CD.room(o.code, rx, chat.cx); }
         catch (e) { if (e.status === 404 || e.status === 403) { ui.toast("الحفلة خلصت.", "info"); close(); } return; }
         q("#sg-who").textContent = "الحاضرين (" + r.members.length + "): " + r.members.join("، ");
         r.reactions.forEach((x) => { rx = Math.max(rx, x.id); if (!x.mine) floatEmoji(x.emoji, x.name); });
+        r.comments.forEach((m) => { chat.cx = Math.max(chat.cx, m.id); });
+        r.hidden.forEach((id) => chat.hidden.add(id));
+        chat.pinned = r.pinned; chat.open = r.comments_open; chat.muted = r.muted;
+        if (r.muted_ids) chat.mutedIds = new Set(r.muted_ids);
+        addComments(r.comments);
         if (role !== "guest") return;
         if (r.state === "ended") { ui.toast("المضيفة خلّصت الحفلة 💜", "info"); close(); return; }
         if (r.state !== "live") return;

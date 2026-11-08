@@ -270,3 +270,20 @@
 .stage-emo small { display: block; font: 600 0.7rem var(--font); color: var(--text-dim); }
 @keyframes emoUp { from { transform: translateY(0) scale(0.7); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-55vh) scale(1.3); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .stage-emo { animation-duration: 0.01s; } }
+
+/* ---------- Concert: organized comments ---------- */
+#sg-chat { position: relative; } .sc-dot { position: absolute; top: 4px; inset-inline-end: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--pink); }
+.stage-chat { position: absolute; z-index: 7; top: 0; bottom: 0; inset-inline-end: 0; width: min(92vw, 360px); display: flex; flex-direction: column; gap: 8px; padding: 14px; background: rgba(7,5,13,0.88); backdrop-filter: blur(14px); border-inline-start: 1px solid var(--border-strong); text-align: start; }
+.stage-chat[hidden] { display: none; }
+.sc-tabs { display: flex; gap: 6px; padding-inline-end: 52px; } .sc-tabs button { flex: 1; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); font: 700 0.85rem var(--font); cursor: pointer; } .sc-tabs button.on { color: var(--gold-2); border-color: var(--border-strong); }
+.sc-pin { padding: 8px 10px; border-radius: var(--radius-sm); background: rgba(230,192,104,0.14); border: 1px solid var(--border-strong); font-size: 0.88rem; }
+.sc-list { flex: 1; overflow: auto; list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 6px; }
+.sc-head { margin-top: 6px; color: var(--gold-2); font-weight: 800; font-size: 0.85rem; }
+.sc-item { padding: 7px 10px; border-radius: var(--radius-sm); background: var(--surface); } .sc-item.mine { background: rgba(244,114,182,0.12); }
+.sc-item b { font-size: 0.85rem; } .sc-item time { margin-inline-start: 8px; color: var(--text-mute); font-size: 0.72rem; } .sc-item p { margin: 2px 0 0; word-break: break-word; }
+.sc-mod { display: flex; gap: 4px; margin-top: 4px; } .sc-mod button { background: none; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; padding: 2px 6px; }
+.sc-quick { display: flex; flex-wrap: wrap; gap: 6px; } .sc-quick button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: 600 0.8rem var(--font); cursor: pointer; }
+.sc-form { display: flex; gap: 6px; } .sc-form .input { flex: 1; min-width: 0; } .sc-host { text-align: center; }
+.cx-sum h4 { margin: 12px 0 4px; color: var(--gold-2); } .cx-sum ul { margin: 0; padding-inline-start: 18px; } .cx-sum { max-height: 50vh; overflow: auto; }
+@media (max-width: 640px) { .stage-chat { top: auto; height: 62vh; width: 100%; border-inline-start: 0; border-top: 1px solid var(--border-strong); } }
+.stage-x { z-index: 8; }
