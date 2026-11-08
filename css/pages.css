@@ -287,3 +287,20 @@
 .cx-sum h4 { margin: 12px 0 4px; color: var(--gold-2); } .cx-sum ul { margin: 0; padding-inline-start: 18px; } .cx-sum { max-height: 50vh; overflow: auto; }
 @media (max-width: 640px) { .stage-chat { top: auto; height: 62vh; width: 100%; border-inline-start: 0; border-top: 1px solid var(--border-strong); } }
 .stage-x { z-index: 8; }
+
+/* ---------- Concert: flying comments ---------- */
+.sg-say { display: flex; gap: 6px; margin-bottom: 10px; } .sg-say .input { flex: 1; min-width: 0; }
+.stage-fc { position: absolute; z-index: 5; pointer-events: none; max-width: min(78vw, 440px); padding: 8px 18px; border-radius: 999px; font: 700 1.05rem var(--font); color: #fff; display: grid; gap: 1px; }
+.stage-fc small { font: 600 0.68rem var(--font); opacity: 0.8; }
+.stage-fc span { word-break: break-word; }
+.fc-across { left: 0; transform: translateX(100vw); animation: fcAcross var(--dur, 8s) linear forwards; }
+.fc-rise { bottom: 26%; animation: fcRise 5.2s ease-out forwards; }
+@keyframes fcAcross { to { transform: translateX(-110%); } }
+@keyframes fcRise { 0% { transform: translateY(0) scale(0.6) rotate(0); opacity: 0; } 12% { opacity: 1; transform: translateY(-4vh) scale(1) rotate(var(--rot, 0deg)); } 100% { transform: translateY(-42vh) scale(1.08) rotate(var(--rot, 0deg)); opacity: 0; } }
+.fc-pop { background: linear-gradient(135deg, var(--pink), var(--purple-600)); box-shadow: 0 6px 26px rgba(244,114,182,0.45); }
+.fc-neon { background: rgba(7,5,13,0.35); border: 2px solid var(--pink); color: #ffe4f1; text-shadow: 0 0 10px var(--pink); box-shadow: 0 0 18px rgba(244,114,182,0.6), inset 0 0 14px rgba(244,114,182,0.3); }
+.fc-gold { background: linear-gradient(135deg, var(--gold-2), var(--gold) 55%, var(--gold-deep)); color: #2b1f06; box-shadow: var(--glow-gold); }
+.fc-glass { background: rgba(255,255,255,0.12); backdrop-filter: blur(10px); border: 1px solid var(--border-strong); }
+.fc-heart { background: linear-gradient(135deg, #fb7185, var(--pink-deep)); border-radius: 22px 22px 22px 4px; box-shadow: 0 6px 24px rgba(251,113,133,0.45); }
+.fc-heart span::before { content: "❤ "; }
+@media (prefers-reduced-motion: reduce) { .stage-fc { display: none; } }
