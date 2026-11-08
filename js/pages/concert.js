@@ -316,33 +316,58 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     renderSet(); save();
   });
 
+  /* ---- مغني على المسرح (رسمة SVG مبسّطة، بتتحرك لما الأغنية تشتغل) ---- */
+  function singerSVG(name, img) {
+    return '<div class="stage-singer" aria-hidden="true">' +
+      '<span class="note n1">♪</span><span class="note n2">♫</span><span class="note n3">♪</span>' +
+      '<svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg" role="img">' +
+      '<ellipse cx="100" cy="288" rx="70" ry="9" fill="rgba(0,0,0,0.45)"/>' +
+      '<g class="sg-body">' +
+      '<path d="M78 170 L72 282 H92 L100 200 L108 282 H128 L122 170 Z" fill="#14101f"/>' +
+      '<path d="M70 98 Q100 84 130 98 L138 178 H62 Z" fill="#1d1230" stroke="#e6c068" stroke-width="2"/>' +
+      '<path d="M100 92 L100 178" stroke="#e6c068" stroke-width="2" opacity="0.7"/>' +
+      '<g class="sg-arm-l"><path d="M72 104 Q48 138 62 168" fill="none" stroke="#1d1230" stroke-width="15" stroke-linecap="round"/><circle cx="62" cy="170" r="8" fill="#e8b48f"/></g>' +
+      '<g class="sg-arm-r"><path d="M128 104 Q146 124 120 80" fill="none" stroke="#1d1230" stroke-width="15" stroke-linecap="round"/><circle cx="119" cy="76" r="8" fill="#e8b48f"/>' +
+      '<rect x="114" y="52" width="9" height="22" rx="4" fill="#2a2a38" stroke="#e6c068" stroke-width="1.5"/><circle cx="118.5" cy="48" r="8" fill="#9ca3af"/></g>' +
+      (img
+        ? '<g class="sg-head"><defs><clipPath id="sg-clip"><circle cx="100" cy="62" r="34"/></clipPath></defs>' +
+          '<circle cx="100" cy="62" r="37" fill="#e6c068"/>' +
+          '<image href="' + esc(img) + '" x="62" y="24" width="76" height="76" preserveAspectRatio="xMidYMin slice" clip-path="url(#sg-clip)"/>' +
+          '<circle cx="100" cy="62" r="34" fill="none" stroke="#1d1230" stroke-width="2"/></g>'
+        : '<g class="sg-head"><circle cx="100" cy="64" r="26" fill="#e8b48f"/>' +
+          '<path d="M74 60 Q76 32 100 34 Q124 32 126 60 Q112 46 100 48 Q88 46 74 60 Z" fill="#1a120d"/>' +
+          '<circle cx="91" cy="66" r="2.4" fill="#2a1a12"/><circle cx="109" cy="66" r="2.4" fill="#2a1a12"/>' +
+          '<ellipse class="sg-mouth" cx="100" cy="79" rx="6" ry="3" fill="#7a2a2a"/></g>') +
+      '</g></svg><div class="stage-singer-name">' + esc(name) + '</div></div>';
+  }
+
+  /* ---- تعليقات "طيّر": بتطير في مسار عشوائي (بنفس البذرة عند الكل لو جاية من الغرفة) ---- */
+  const REDUCED = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function flyComment(ov, text, name, seedNo) {
+    const rand = rng(seedNo || ((Math.random() * 1e9) | 0));
+    const vw = ov.clientWidth || innerWidth, vh = ov.clientHeight || innerHeight;
+    const el = document.createElement("div");
+    el.className = "stage-fly-msg";
+    const hue = Math.floor(rand() * 360);
+    el.style.setProperty("--h", hue);
+    el.innerHTML = (name ? "<small>" + esc(name) + "</small>" : "") + "<span>" + esc(text) + "</span>";
+    ov.appendChild(el);
+    const w = el.offsetWidth, h = el.offsetHeight;
+    const maxX = Math.max(0, vw - w - 8), maxY = Math.max(0, vh * 0.62 - h);
+    const pt = () => ({ x: 4 + rand() * maxX, y: 56 + rand() * Math.max(0, maxY - 56), r: (rand() - 0.5) * 16 });
+    const n = 4 + Math.floor(rand() * 2), pts = Array.from({ length: n }, pt);
+    const T = 7000 + rand() * 2500;
+    if (REDUCED) { el.style.transform = "translate(" + pts[0].x + "px," + pts[0].y + "px)"; setTimeout(() => el.remove(), 3500); return; }
+    const frames = pts.map((p, i) => ({ transform: "translate(" + p.x + "px," + p.y + "px) rotate(" + p.r + "deg) scale(" + (i === 0 ? 0.4 : 1) + ")",
+      opacity: i === 0 ? 0 : i === n - 1 ? 0 : 1, offset: i / (n - 1) }));
+    frames[1].opacity = 1;
+    const anim = el.animate(frames, { duration: T, easing: "ease-in-out", fill: "forwards" });
+    anim.onfinish = () => el.remove();
+  }
+
   /* ---- وضع المسرح: فردي / مضيفة / ضيفة ---- */
   const EMO = ["❤️", "🔥", "👏", "🎶", "😍", "🎤"];
   const songsOf = (ids) => ids.map(songOf).filter(Boolean);
-  /* ---- لوحة التعليقات + ملخص الحفلة ---- */
-  const QUICK = ["صوته حلو 😍", "أحلى أغنية 🔥", "كمّلوا 👏", "❤️"];
-  function chatHtml(host) {
-    return '<aside class="stage-chat" hidden aria-label="التعليقات"><div class="sc-tabs"><button type="button" class="on" data-tab="cur">الأغنية الحالية</button><button type="button" data-tab="all">كل التعليقات</button></div>' +
-      '<div class="sc-pin" id="sc-pin" hidden></div><ol class="sc-list" id="sc-list" aria-live="polite"></ol>' +
-      '<div class="sc-quick">' + QUICK.map((t) => '<button type="button" data-q="' + t + '">' + t + "</button>").join("") + "</div>" +
-      '<div class="sc-form"><input class="input" id="sc-in" maxlength="140" autocomplete="off" aria-label="تعليق" /><button type="button" class="btn btn-primary btn-sm" id="sc-send">إرسال</button></div>' +
-      (host ? '<div class="sc-host"><button type="button" class="btn btn-sm" id="sc-lock">قفل التعليقات</button></div>' : "") + "</aside>";
-  }
-  function showSummary(items, concertTitle) {
-    const by = new Map();
-    items.forEach((m) => { if (!by.has(m.song_id)) by.set(m.song_id, []); by.get(m.song_id).push(m); });
-    let html = '<h3>ملخص الحفلة 🎤</h3><p class="hint">التعليقات دي مش محفوظة — انسخيها لو عايزة تحتفظي بيها.</p><div class="cx-sum">', txt = concertTitle + "\n";
-    by.forEach((arr, id) => {
-      const sg = songOf(id), name = sg ? sg.title : "—";
-      html += "<h4>" + esc(name) + "</h4><ul>" + arr.map((m) => "<li><b>" + esc(m.name) + ":</b> " + esc(m.body) + "</li>").join("") + "</ul>";
-      txt += "\n" + name + "\n" + arr.map((m) => "- " + m.name + ": " + m.body).join("\n") + "\n";
-    });
-    html += '</div><div class="row" style="margin-top:14px;gap:10px"><button type="button" class="btn btn-primary" id="sum-copy">نسخ الملخص</button><button type="button" class="btn" data-close>تمام</button></div>';
-    const m = ui.modal(html);
-    m.el.querySelector("#sum-copy").addEventListener("click", async () => {
-      try { await navigator.clipboard.writeText(txt); ui.toast("اتنسخ الملخص ✨", "success"); } catch (e) { ui.toast("ماقدرناش ننسخ، حدّديه وانسخيه يدويًا.", "error"); }
-    });
-  }
   function openStage(o) {
     o = o || { role: "solo" };
     const role = o.role, list = o.list || songsOf(st.setlist), room = role !== "solo";
@@ -351,7 +376,7 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     ov.className = "stage theme-" + st.theme;
     ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "وضع المسرح");
     ov.innerHTML =
-      '<div class="stage-beams" aria-hidden="true"><i></i><i></i><i></i></div><div class="curtain l"></div><div class="curtain r"></div>' +
+      '<div class="stage-beams" aria-hidden="true"><i></i><i></i><i></i></div>' + singerSVG(a.name, imgUrl) + '<div class="curtain l"></div><div class="curtain r"></div>' +
       '<button type="button" class="btn btn-icon stage-x" aria-label="خروج من المسرح">' + RSU.icon("x") + "</button>" +
       '<div class="stage-center"><h2 class="gold-text">' + esc(c.title) + "</h2><p>" + esc(a.name) + "</p>" +
       (st.message && role !== "guest" ? '<p class="stage-msg">“' + esc(st.message) + "”</p>" : "") +
@@ -359,10 +384,10 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       (role === "guest" ? '<p id="sg-wait">في انتظار المضيفة تبدأ الحفلة…</p>' : '<button type="button" class="btn btn-primary btn-lg" id="sg-start">ابدأ الحفلة</button>') +
       '<div class="stage-count" id="sg-count" aria-live="assertive"></div></div>' +
       '<div class="stage-now" hidden><h3 id="sg-title"></h3><ol id="sg-list">' + list.map((s) => '<li data-id="' + s.id + '">' + esc(s.title) + "</li>").join("") + "</ol>" +
+      '<form class="stage-fly" id="sg-fly" autocomplete="off"><input class="input" id="sg-fly-in" maxlength="80" placeholder="اكتبي تعليق وطيّريه على المسرح…" aria-label="تعليق" /><button type="submit" class="btn btn-pink">طيّر 🚀</button></form>' +
       (room ? '<div class="stage-emojis">' + EMO.map((e) => '<button type="button" class="btn btn-icon sm" data-emo="' + e + '" aria-label="رد فعل ' + e + '">' + e + "</button>").join("") + "</div>" : "") +
-      (room ? '<div class="sg-say"><input class="input" id="sg-say" maxlength="140" autocomplete="off" aria-label="اكتبي تعليق" /><button type="button" class="btn btn-pink btn-sm" id="sg-say-btn">طيّر ✨</button></div>' : "") +
-      '<div class="row">' + (room ? '<button type="button" class="btn btn-icon" id="sg-chat" aria-label="لوحة التعليقات">💬<i class="sc-dot" hidden></i></button><button type="button" class="btn btn-icon is-active" id="sg-fly" aria-label="التعليقات الطايرة" aria-pressed="true">✨</button>' : "") + '<button type="button" class="btn btn-icon" id="sg-toggle" aria-label="تشغيل / إيقاف">' + RSU.icon("pause") + "</button>" +
-      (role !== "guest" ? '<button type="button" class="btn btn-icon" id="sg-next" aria-label="التالية">' + RSU.icon("skip-forward") + "</button>" : "") + "</div></div>" + (room ? chatHtml(role === "host") : "");
+      '<div class="row"><button type="button" class="btn btn-icon" id="sg-toggle" aria-label="تشغيل / إيقاف">' + RSU.icon("pause") + "</button>" +
+      (role !== "guest" ? '<button type="button" class="btn btn-icon" id="sg-next" aria-label="التالية">' + RSU.icon("skip-forward") + "</button>" : "") + "</div></div>";
     document.body.appendChild(ov);
     document.body.style.overflow = "hidden";
     RSU.hydrateIcons(ov);
@@ -370,110 +395,14 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     let timers = [], unsub = null, lastId = null, opened = false, rx = 0, hostLive = false, lastIdx = -1, lastPlaying = null;
     const CD = RSU.data.concert;
 
-    /* ---- تعليقات طايرة على المسرح ---- */
-    let fly = true, flying = 0, lane = 0;
-    const FC_STYLES = ["fc-pop", "fc-neon", "fc-gold", "fc-glass", "fc-heart"], LANES = [16, 26, 36, 46, 56];
-    const reduced = window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
-    function flyComment(m) {
-      if (!fly || !opened || reduced || flying >= 8) return;
-      const el = document.createElement("div"), across = Math.random() < 0.55;
-      el.className = "stage-fc " + FC_STYLES[Math.floor(Math.random() * FC_STYLES.length)] + (across ? " fc-across" : " fc-rise");
-      if (across) { el.style.top = LANES[lane++ % LANES.length] + "%"; el.style.setProperty("--dur", 7 + Math.random() * 3 + "s"); }
-      else { el.style.left = 6 + Math.random() * 58 + "%"; el.style.setProperty("--rot", (Math.random() * 16 - 8) + "deg"); }
-      const nm = document.createElement("small"); nm.textContent = m.name;
-      const tx = document.createElement("span"); tx.textContent = m.body;
-      el.append(nm, tx);
-      flying++;
-      el.addEventListener("animationend", () => { el.remove(); flying--; });
-      ov.appendChild(el);
-    }
-
-    /* ---- تعليقات منظمة (مربوطة بالأغنية) ---- */
-    const chat = { items: [], ids: new Set(), hidden: new Set(), pinned: null, open: true, muted: false, cx: 0, tab: "cur", unread: 0, mutedIds: new Set() };
-    const curSong = () => { const S = RSU.player.state; return S.queue[S.index] || null; };
-    const hhmm = (t) => new Date(t).toLocaleTimeString("ar-EG", { hour: "2-digit", minute: "2-digit" });
-    function renderChat() {
-      if (!room || !q(".stage-chat")) return;
-      const cur = curSong(), host = role === "host";
-      const show = chat.items.filter((m) => !chat.hidden.has(m.id) && (chat.tab === "all" || (cur && m.song_id === cur.id)));
-      let h = "", last = null;
-      show.forEach((m) => {
-        if (chat.tab === "all" && m.song_id !== last) { last = m.song_id; const sg = songOf(m.song_id); h += '<li class="sc-head">' + esc(sg ? sg.title : "—") + "</li>"; }
-        const mu = chat.mutedIds.has(m.uid);
-        h += '<li class="sc-item' + (m.mine ? " mine" : "") + '"><b>' + esc(m.name) + "</b><time>" + hhmm(m.created_at) + "</time><p>" + esc(m.body) + "</p>" +
-          (host ? '<span class="sc-mod"><button type="button" data-pin="' + m.id + '" aria-label="تثبيت">📌</button><button type="button" data-del="' + m.id + '" aria-label="حذف">🗑</button>' +
-            (m.mine || !m.uid ? "" : '<button type="button" data-mute="' + m.uid + '" aria-label="' + (mu ? "فك الكتم" : "كتم") + '">' + (mu ? "🔊" : "🔇") + "</button>") + "</span>" : "") + "</li>";
-      });
-      const list = q("#sc-list"), stick = list.scrollTop + list.clientHeight >= list.scrollHeight - 30;
-      list.innerHTML = h || '<li class="hint">لسه مفيش تعليقات' + (chat.tab === "cur" ? " على الأغنية دي" : "") + ".</li>";
-      if (stick) list.scrollTop = list.scrollHeight;
-      const pin = q("#sc-pin");
-      pin.hidden = !chat.pinned;
-      if (chat.pinned) pin.innerHTML = "📌 <b>" + esc(chat.pinned.name) + ":</b> " + esc(chat.pinned.body);
-      const can = host || (chat.open && !chat.muted);
-      q("#sc-in").disabled = !can; q("#sc-send").disabled = !can; q("#sg-say").disabled = !can; q("#sg-say-btn").disabled = !can;
-      q("#sg-say").placeholder = can ? "اكتبي تعليق وهيطير على المسرح ✨" : chat.muted ? "المضيفة قفلت التعليقات عندك" : "التعليقات مقفولة دلوقتي";
-      q("#sc-in").placeholder = can ? "اكتبي تعليق (١٤٠ حرف)…" : chat.muted ? "المضيفة قفلت التعليقات عندك" : "التعليقات مقفولة دلوقتي";
-      if (host) q("#sc-lock").textContent = chat.open ? "قفل التعليقات" : "فتح التعليقات";
-    }
-    function addComments(arr, force) {
-      let n = 0;
-      arr.forEach((m) => { if (chat.ids.has(m.id)) return; chat.ids.add(m.id); chat.items.push(m); if (!m.mine) n++; if (force || chat.ready) flyComment(m); });
-      chat.items.sort((x, y) => x.id - y.id);
-      if (n && q(".stage-chat").hidden) { chat.unread += n; q(".sc-dot").hidden = false; }
-      renderChat();
-    }
-    async function sendComment(text) {
-      const cur = curSong(); text = String(text || "").trim();
-      if (!cur || !text) return;
-      try {
-        const m = await CD.comment(o.code, { body: text, song_id: cur.id });
-        addComments([Object.assign({ name: ctx.profile.display_name, mine: true }, m)], true);
-        q("#sc-in").value = ""; q("#sg-say").value = "";
-      } catch (err) { ui.toast(RSU.humanError(err), "error"); }
-    }
-    if (room) {
-      const panel = q(".stage-chat");
-      q("#sg-chat").addEventListener("click", () => {
-        panel.hidden = !panel.hidden;
-        if (!panel.hidden) { chat.unread = 0; q(".sc-dot").hidden = true; renderChat(); q("#sc-in").focus(); }
-      });
-      panel.addEventListener("click", async (e) => {
-        const t = e.target.closest("button");
-        if (!t) return;
-        try {
-          if (t.dataset.tab) { chat.tab = t.dataset.tab; panel.querySelectorAll("[data-tab]").forEach((x) => x.classList.toggle("on", x === t)); renderChat(); }
-          else if (t.id === "sc-send") sendComment(q("#sc-in").value);
-          else if (t.dataset.q) sendComment(t.dataset.q);
-          else if (t.dataset.pin) {
-            const id = +t.dataset.pin, same = chat.pinned && chat.pinned.id === id;
-            await CD.pin(o.code, id, !same);
-            const m = chat.items.find((x) => x.id === id);
-            chat.pinned = same || !m ? null : { id, name: m.name, body: m.body }; renderChat();
-          }
-          else if (t.dataset.del) { const id = +t.dataset.del; await CD.removeComment(o.code, id); chat.hidden.add(id); if (chat.pinned && chat.pinned.id === id) chat.pinned = null; renderChat(); }
-          else if (t.dataset.mute) { const on = !chat.mutedIds.has(t.dataset.mute); await CD.mute(o.code, t.dataset.mute, on); if (on) chat.mutedIds.add(t.dataset.mute); else chat.mutedIds.delete(t.dataset.mute); renderChat(); }
-          else if (t.id === "sc-lock") { await CD.setComments(o.code, !chat.open); chat.open = !chat.open; renderChat(); }
-        } catch (err) { ui.toast(RSU.humanError(err), "error"); }
-      });
-      q("#sc-in").addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") sendComment(q("#sc-in").value); });
-      q("#sg-say").addEventListener("keydown", (e) => { e.stopPropagation(); if (e.key === "Enter") sendComment(q("#sg-say").value); });
-      q("#sg-say-btn").addEventListener("click", () => sendComment(q("#sg-say").value));
-      q("#sg-fly").addEventListener("click", (e) => { fly = !fly; e.currentTarget.classList.toggle("is-active", fly); e.currentTarget.setAttribute("aria-pressed", String(fly)); });
-    }
-
     const onKey = (e) => { if (e.key === "Escape") close(); };
-    let closed = false;
     function close() {
-      if (closed) return; closed = true;
-      const summary = room ? chat.items.filter((m) => !chat.hidden.has(m.id)) : [];
       timers.forEach(clearInterval); if (unsub) unsub();
       document.removeEventListener("keydown", onKey);
       document.body.style.overflow = "";
       if (room) CD.leave(o.code).catch(() => {});
       if (RSU.player.state.playing) RSU.player.toggle();
       ov.remove();
-      if (summary.length) showSummary(summary, c.title);
     }
     function openCurtains() {
       if (opened) return; opened = true;
@@ -490,6 +419,18 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
 
     document.addEventListener("keydown", onKey);
     q(".stage-x").addEventListener("click", close);
+    let flyBusy = false;
+    q("#sg-fly").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const inp = q("#sg-fly-in"), text = inp.value.replace(/\s+/g, " ").trim();
+      if (!text || flyBusy) return;
+      flyBusy = true; inp.value = "";
+      flyComment(ov, text, ctx.profile.display_name);
+      if (room) { try { await CD.fly(o.code, text); } catch (err) { ui.toast(RSU.humanError(err), "error"); } }
+      setTimeout(() => { flyBusy = false; }, 2000);
+      inp.focus();
+    });
+    q("#sg-fly-in").addEventListener("keydown", (e) => e.stopPropagation());
     if (q("#sg-copy")) q("#sg-copy").addEventListener("click", async () => {
       const link = location.origin + location.pathname + "?room=" + o.code;
       try { await navigator.clipboard.writeText(link); ui.toast("اتنسخ الرابط 🔗", "success"); } catch (e) { ui.toast("الكود: " + o.code, "info"); }
@@ -521,24 +462,24 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       if (cur) {
         q("#sg-title").textContent = cur.title;
         ov.querySelectorAll("#sg-list li").forEach((li) => li.classList.toggle("on", li.dataset.id === cur.id));
-        if (cur.id !== lastId) { lastId = cur.id; renderChat(); if (opened) RSU.fx.burst(innerWidth / 2, innerHeight / 3, 22); }
+        if (cur.id !== lastId) { lastId = cur.id; if (opened) RSU.fx.burst(innerWidth / 2, innerHeight / 3, 22); }
       }
+      ov.classList.toggle("is-playing", !!S.playing);
       if (role === "host" && hostLive && (S.index !== lastIdx || !!S.playing !== lastPlaying)) { lastIdx = S.index; lastPlaying = !!S.playing; pushSync(); }
     });
 
     if (room) {
       async function poll() {
         let r;
-        try { r = await CD.room(o.code, rx, chat.cx); }
+        try { r = await CD.room(o.code, rx); }
         catch (e) { if (e.status === 404 || e.status === 403) { ui.toast("الحفلة خلصت.", "info"); close(); } return; }
         q("#sg-who").textContent = "الحاضرين (" + r.members.length + "): " + r.members.join("، ");
-        r.reactions.forEach((x) => { rx = Math.max(rx, x.id); if (!x.mine) floatEmoji(x.emoji, x.name); });
-        r.comments.forEach((m) => { chat.cx = Math.max(chat.cx, m.id); });
-        r.hidden.forEach((id) => chat.hidden.add(id));
-        chat.pinned = r.pinned; chat.open = r.comments_open; chat.muted = r.muted;
-        if (r.muted_ids) chat.mutedIds = new Set(r.muted_ids);
-        addComments(r.comments);
-        chat.ready = true; // أول polling بيجيب التعليقات القديمة من غير ما تطير
+        r.reactions.forEach((x) => {
+          rx = Math.max(rx, x.id);
+          if (x.mine) return;
+          if (x.message) flyComment(ov, x.message, x.name, x.id * 2654435761);
+          else floatEmoji(x.emoji, x.name);
+        });
         if (role !== "guest") return;
         if (r.state === "ended") { ui.toast("المضيفة خلّصت الحفلة 💜", "info"); close(); return; }
         if (r.state !== "live") return;

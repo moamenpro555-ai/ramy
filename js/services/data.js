@@ -181,14 +181,10 @@
       releaseSeat: () => api().del("/concert/seat"),
       createRoom: () => api().post("/concert/rooms"),
       join: (code) => api().post("/concert/rooms/" + code + "/join"),
-      room: (code, rx, cx) => api().get("/concert/rooms/" + code + "?rx=" + (rx || 0) + "&cx=" + (cx || 0)),
-      comment: (code, body) => api().post("/concert/rooms/" + code + "/comments", body),
-      pin: (code, id, pinned) => api().post("/concert/rooms/" + code + "/comments/" + id + "/pin", { pinned }),
-      removeComment: (code, id) => api().del("/concert/rooms/" + code + "/comments/" + id),
-      setComments: (code, open) => api().post("/concert/rooms/" + code + "/comments-open", { open }),
-      mute: (code, user_id, muted) => api().post("/concert/rooms/" + code + "/mute", { user_id, muted }),
+      room: (code, rx) => api().get("/concert/rooms/" + code + "?rx=" + (rx || 0)),
       sync: (code, body) => api().post("/concert/rooms/" + code + "/sync", body),
       react: (code, emoji) => api().post("/concert/rooms/" + code + "/react", { emoji }),
+      fly: (code, message) => api().post("/concert/rooms/" + code + "/fly", { message }),
       leave: (code) => api().post("/concert/rooms/" + code + "/leave")
     },
 

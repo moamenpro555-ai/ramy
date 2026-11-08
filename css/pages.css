@@ -271,36 +271,30 @@
 @keyframes emoUp { from { transform: translateY(0) scale(0.7); opacity: 0; } 15% { opacity: 1; } to { transform: translateY(-55vh) scale(1.3); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .stage-emo { animation-duration: 0.01s; } }
 
-/* ---------- Concert: organized comments ---------- */
-#sg-chat { position: relative; } .sc-dot { position: absolute; top: 4px; inset-inline-end: 4px; width: 10px; height: 10px; border-radius: 50%; background: var(--pink); }
-.stage-chat { position: absolute; z-index: 7; top: 0; bottom: 0; inset-inline-end: 0; width: min(92vw, 360px); display: flex; flex-direction: column; gap: 8px; padding: 14px; background: rgba(7,5,13,0.88); backdrop-filter: blur(14px); border-inline-start: 1px solid var(--border-strong); text-align: start; }
-.stage-chat[hidden] { display: none; }
-.sc-tabs { display: flex; gap: 6px; padding-inline-end: 52px; } .sc-tabs button { flex: 1; padding: 8px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface); color: var(--text-dim); font: 700 0.85rem var(--font); cursor: pointer; } .sc-tabs button.on { color: var(--gold-2); border-color: var(--border-strong); }
-.sc-pin { padding: 8px 10px; border-radius: var(--radius-sm); background: rgba(230,192,104,0.14); border: 1px solid var(--border-strong); font-size: 0.88rem; }
-.sc-list { flex: 1; overflow: auto; list-style: none; margin: 0; padding: 0; display: grid; align-content: start; gap: 6px; }
-.sc-head { margin-top: 6px; color: var(--gold-2); font-weight: 800; font-size: 0.85rem; }
-.sc-item { padding: 7px 10px; border-radius: var(--radius-sm); background: var(--surface); } .sc-item.mine { background: rgba(244,114,182,0.12); }
-.sc-item b { font-size: 0.85rem; } .sc-item time { margin-inline-start: 8px; color: var(--text-mute); font-size: 0.72rem; } .sc-item p { margin: 2px 0 0; word-break: break-word; }
-.sc-mod { display: flex; gap: 4px; margin-top: 4px; } .sc-mod button { background: none; border: 1px solid var(--border); border-radius: 8px; cursor: pointer; padding: 2px 6px; }
-.sc-quick { display: flex; flex-wrap: wrap; gap: 6px; } .sc-quick button { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface); color: var(--text); font: 600 0.8rem var(--font); cursor: pointer; }
-.sc-form { display: flex; gap: 6px; } .sc-form .input { flex: 1; min-width: 0; } .sc-host { text-align: center; }
-.cx-sum h4 { margin: 12px 0 4px; color: var(--gold-2); } .cx-sum ul { margin: 0; padding-inline-start: 18px; } .cx-sum { max-height: 50vh; overflow: auto; }
-@media (max-width: 640px) { .stage-chat { top: auto; height: 62vh; width: 100%; border-inline-start: 0; border-top: 1px solid var(--border-strong); } }
-.stage-x { z-index: 8; }
+/* ---------- Concert: المغني + تعليقات "طيّر" ---------- */
+.stage-singer { position: absolute; z-index: 2; inset-inline: 0; margin-inline: auto; width: min(46vw, 190px); bottom: clamp(250px, 40vh, 400px); text-align: center; pointer-events: none; opacity: 0; transition: opacity 1.4s 0.6s; }
+.stage.open .stage-singer { opacity: 1; }
+.stage-singer svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 0 22px rgba(var(--sg), 0.55)); }
+.stage-singer-name { margin-top: 2px; font: 700 0.8rem var(--font); color: var(--gold-2); text-shadow: 0 0 10px rgba(0,0,0,0.8); }
+.stage-singer .note { position: absolute; top: 18%; font-size: 1.5rem; color: var(--gold-2); opacity: 0; }
+.stage-singer .n1 { inset-inline-start: 4%; } .stage-singer .n2 { inset-inline-end: 2%; } .stage-singer .n3 { inset-inline-end: 14%; top: 6%; }
+.stage.is-playing .stage-singer .note { animation: noteUp 2.8s ease-out infinite; }
+.stage.is-playing .stage-singer .n2 { animation-delay: 0.9s; } .stage.is-playing .stage-singer .n3 { animation-delay: 1.8s; }
+@keyframes noteUp { from { transform: translateY(20px) scale(0.7); opacity: 0; } 20% { opacity: 1; } to { transform: translateY(-70px) rotate(14deg) scale(1.2); opacity: 0; } }
+.stage-singer .sg-body { transform-origin: 100px 280px; transform-box: view-box; }
+.stage.is-playing .sg-body { animation: sgSway 1.6s ease-in-out infinite alternate; }
+.stage.is-playing .sg-head { transform-origin: 100px 90px; animation: sgNod 0.8s ease-in-out infinite alternate; }
+.stage.is-playing .sg-arm-l { transform-origin: 72px 104px; animation: sgArm 1.1s ease-in-out infinite alternate; }
+.stage.is-playing .sg-mouth { transform-origin: 100px 79px; animation: sgSing 0.45s ease-in-out infinite alternate; }
+@keyframes sgSway { from { transform: rotate(-2.5deg); } to { transform: rotate(2.5deg); } }
+@keyframes sgNod { from { transform: rotate(-3deg); } to { transform: rotate(3deg) translateY(1px); } }
+@keyframes sgArm { from { transform: rotate(-8deg); } to { transform: rotate(14deg); } }
+@keyframes sgSing { from { transform: scaleY(0.6); } to { transform: scaleY(1.9); } }
 
-/* ---------- Concert: flying comments ---------- */
-.sg-say { display: flex; gap: 6px; margin-bottom: 10px; } .sg-say .input { flex: 1; min-width: 0; }
-.stage-fc { position: absolute; z-index: 5; pointer-events: none; max-width: min(78vw, 440px); padding: 8px 18px; border-radius: 999px; font: 700 1.05rem var(--font); color: #fff; display: grid; gap: 1px; }
-.stage-fc small { font: 600 0.68rem var(--font); opacity: 0.8; }
-.stage-fc span { word-break: break-word; }
-.fc-across { left: 0; transform: translateX(100vw); animation: fcAcross var(--dur, 8s) linear forwards; }
-.fc-rise { bottom: 26%; animation: fcRise 5.2s ease-out forwards; }
-@keyframes fcAcross { to { transform: translateX(-110%); } }
-@keyframes fcRise { 0% { transform: translateY(0) scale(0.6) rotate(0); opacity: 0; } 12% { opacity: 1; transform: translateY(-4vh) scale(1) rotate(var(--rot, 0deg)); } 100% { transform: translateY(-42vh) scale(1.08) rotate(var(--rot, 0deg)); opacity: 0; } }
-.fc-pop { background: linear-gradient(135deg, var(--pink), var(--purple-600)); box-shadow: 0 6px 26px rgba(244,114,182,0.45); }
-.fc-neon { background: rgba(7,5,13,0.35); border: 2px solid var(--pink); color: #ffe4f1; text-shadow: 0 0 10px var(--pink); box-shadow: 0 0 18px rgba(244,114,182,0.6), inset 0 0 14px rgba(244,114,182,0.3); }
-.fc-gold { background: linear-gradient(135deg, var(--gold-2), var(--gold) 55%, var(--gold-deep)); color: #2b1f06; box-shadow: var(--glow-gold); }
-.fc-glass { background: rgba(255,255,255,0.12); backdrop-filter: blur(10px); border: 1px solid var(--border-strong); }
-.fc-heart { background: linear-gradient(135deg, #fb7185, var(--pink-deep)); border-radius: 22px 22px 22px 4px; box-shadow: 0 6px 24px rgba(251,113,133,0.45); }
-.fc-heart span::before { content: "❤ "; }
-@media (prefers-reduced-motion: reduce) { .stage-fc { display: none; } }
+.stage-fly { display: flex; gap: 8px; margin-bottom: 10px; }
+.stage-fly .input { flex: 1; min-width: 0; }
+.stage-fly-msg { position: absolute; z-index: 5; top: 0; left: 0; max-width: min(70vw, 280px); padding: 8px 14px; border-radius: 18px; pointer-events: none; opacity: 0; text-align: start; line-height: 1.5;
+  background: hsla(var(--h, 300), 70%, 22%, 0.82); border: 1px solid hsla(var(--h, 300), 85%, 70%, 0.7); box-shadow: 0 0 18px hsla(var(--h, 300), 85%, 60%, 0.45); color: #fff; font-weight: 700; word-break: break-word; }
+.stage-fly-msg small { display: block; font: 600 0.68rem var(--font); color: hsl(var(--h, 300), 90%, 82%); }
+@media (max-width: 640px) { .stage-singer { width: 34vw; bottom: clamp(290px, 44vh, 400px); } }
+@media (prefers-reduced-motion: reduce) { .stage.is-playing .sg-body, .stage.is-playing .sg-head, .stage.is-playing .sg-arm-l, .stage.is-playing .sg-mouth, .stage.is-playing .stage-singer .note { animation: none; } .stage-fly-msg { opacity: 1; } }
