@@ -8,5 +8,5 @@
    موجودة في Render بس، مش هنا أبدًا.
    ===================================================================== */
 window.APP_CONFIG = {
-  API_URL: ""
+  API_URL: "https://ramy-api.onrender.com"
 };
