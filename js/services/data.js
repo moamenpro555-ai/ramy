@@ -172,6 +172,21 @@
     }),
 
     /* ---------- النشاط ---------- */
+    /* ---------- الحفلة: تذكرة + مقاعد + سيت ليست ---------- */
+    concert: {
+      me: () => api().get("/concert/me"),
+      seats: () => api().get("/concert/seats"),
+      saveTicket: (t) => api().put("/concert/ticket", t),
+      claimSeat: (seat) => api().post("/concert/seat", { seat }),
+      releaseSeat: () => api().del("/concert/seat"),
+      createRoom: () => api().post("/concert/rooms"),
+      join: (code) => api().post("/concert/rooms/" + code + "/join"),
+      room: (code, rx) => api().get("/concert/rooms/" + code + "?rx=" + (rx || 0)),
+      sync: (code, body) => api().post("/concert/rooms/" + code + "/sync", body),
+      react: (code, emoji) => api().post("/concert/rooms/" + code + "/react", { emoji }),
+      leave: (code) => api().post("/concert/rooms/" + code + "/leave")
+    },
+
     activity: {
       log(uid, action, meta) {
         // fire-and-forget: ماينفعش التتبّع يعطّل تجربة المستخدمة

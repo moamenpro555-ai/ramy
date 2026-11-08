@@ -17,17 +17,48 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
   }
   const seed = hash(ctx.user.id);
   const ticketNo = "DEMO-" + String(seed % 1000000).padStart(6, "0");
-  const seat = "VIP · " + String.fromCharCode(65 + (seed % 6)) + "-" + (1 + ((seed >> 3) % 40));
+  const fallbackSeat = "VIP · " + String.fromCharCode(65 + (seed % 6)) + "-" + (1 + ((seed >> 3) % 40));
+
+  // ثيمات التذكرة + فئات المقاعد (A-B VIP · C-D Gold · E-F عادي)
+  const PAL = {
+    violet: { a: "#1b0a3a", b: "#0d0919", c: "#2a0d3f", glow: "rgba(244,114,182,0.28)" },
+    rose: { a: "#3a0a22", b: "#14070d", c: "#4a0f2c", glow: "rgba(251,113,133,0.32)" },
+    gold: { a: "#2b1f06", b: "#0f0b04", c: "#3b2a08", glow: "rgba(246,220,155,0.3)" }
+  };
+  const THEME_LABEL = { violet: "بنفسجي", rose: "وردي", gold: "ذهبي" };
+  const TIER = { A: "VIP", B: "VIP", C: "Gold", D: "Gold", E: "عادي", F: "عادي" };
+  let server = { ticket: null, seat: null }, allSongs = [];
+  try { server = (await RSU.data.concert.me()) || server; } catch (e) {}
+  try { allSongs = (await RSU.data.songs.listCached()) || []; } catch (e) {}
+  const st = {
+    theme: (server.ticket && PAL[server.ticket.theme] && server.ticket.theme) || "violet",
+    message: (server.ticket && server.ticket.message) || "",
+    setlist: ((server.ticket && server.ticket.setlist) || []).filter((id) => allSongs.some((s) => s.id === id)),
+    seat: server.seat
+  };
+  const seatLabel = () => (st.seat ? TIER[st.seat[0]] + " · " + st.seat : fallbackSeat);
 
   app.innerHTML =
     RSU.pageHead("My Dream Concert", "تذكرتك الافتراضية للحفلة اللي بتحلمي بيها 🎤 — تجربة للترفيه فقط.", "ticket") +
     '<div class="ticket-layout"><div class="ticket-stage"><canvas id="ticket" width="1200" height="520" role="img" aria-label="تذكرة حفلة افتراضية"></canvas></div>' +
     '<div class="glass card ticket-panel"><h3>خصّصي تذكرتك</h3>' +
     '<label class="field"><span>الاسم على التذكرة</span><input class="input" id="t-name" maxlength="30" value="' + esc(ctx.profile.display_name) + '" /></label>' +
+    '<div class="field"><span>ثيم التذكرة</span><div class="cx-themes" id="cx-themes">' +
+    Object.keys(PAL).map((k) => '<button type="button" class="btn btn-sm' + (st.theme === k ? " is-active" : "") + '" data-theme="' + k + '">' + THEME_LABEL[k] + "</button>").join("") + "</div></div>" +
+    '<label class="field"><span>رسالة لرامي (بتظهر على التذكرة)</span><input class="input" id="t-msg" maxlength="60" value="' + esc(st.message) + '" /></label>' +
     '<button class="btn btn-primary btn-lg" id="t-download" style="width:100%">' + RSU.icon("download") + " تحميل التذكرة كصورة</button>" +
     '<p class="hint" style="margin-top:12px">' + RSU.icon("info") + " " + esc(c.note) + "</p>" +
     (imgUrl ? "" : '<p class="hint">' + (ctx.isAdmin ? "ضيفي صورة للتذكرة من لوحة الإدارة ← المحتوى." : "صورة الفنان هتظهر على التذكرة أول ما تتضاف.") + "</p>") +
-    "</div></div>";
+    "</div></div>" +
+    '<section class="glass card cx-section"><h3>اختاري مقعدك</h3><p class="hint" id="cx-seat-hint"></p>' +
+    '<div class="cx-stage-bar">المسرح</div><div class="cx-map" id="cx-map" role="group" aria-label="خريطة المقاعد"></div>' +
+    '<div class="cx-legend"><span><i class="cx-seat tier-A"></i>VIP</span><span><i class="cx-seat tier-C"></i>Gold</span><span><i class="cx-seat tier-E"></i>عادي</span><span><i class="cx-seat is-mine"></i>مقعدك</span><span><i class="cx-seat is-taken"></i>محجوز</span></div></section>' +
+    '<section class="glass card cx-section"><h3>السيت ليست بتاعتك</h3><p class="hint">اختاري لحد ١٢ أغنية ورتّبيها، وهتتشغّل بالترتيب في وضع المسرح.</p>' +
+    '<div class="cx-set-grid"><div><h4>الأغاني المتاحة</h4><div id="cx-pool" class="cx-pool"></div></div><div><h4>حفلتك <span id="cx-count"></span></h4><ol id="cx-list" class="cx-list"></ol></div></div></section>' +
+    '<section class="glass card cx-section"><h3>حفلة مع حد تاني</h3><p class="hint">اعملي غرفة وابعتي الكود لحد (لحد ١٠ حاضرين)، وهتسمعوا نفس الأغنية في نفس الوقت وتبعتوا ردود فعل. المضيفة بس هي اللي بتتحكم.</p>' +
+    '<div class="cx-room-row"><button type="button" class="btn btn-primary" id="cx-host">' + RSU.icon("users") + " ابدأ حفلة مشتركة</button></div>" +
+    '<div class="cx-room-row"><input class="input" id="cx-code" maxlength="5" dir="ltr" placeholder="كود الغرفة" aria-label="كود الغرفة" autocomplete="off" /><button type="button" class="btn" id="cx-join">ادخلي الحفلة</button></div></section>' +
+    '<div class="cx-go"><button class="btn btn-pink btn-lg" id="cx-stage">' + RSU.icon("mic") + " ابدأ الحفلة (وضع المسرح)</button></div>";
   RSU.hydrateIcons(app);
 
   const cv = app.querySelector("#ticket");
@@ -85,15 +116,16 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
   async function draw(withPhoto) {
     try { await document.fonts.load('700 40px Cairo'); await document.fonts.ready; } catch (e) {}
     g.clearRect(0, 0, W, H);
+    const P = PAL[st.theme];
     g.direction = "rtl";
     g.textBaseline = "alphabetic";
 
     // الخلفية
     const bg = g.createLinearGradient(0, 0, W, H);
-    bg.addColorStop(0, "#1b0a3a"); bg.addColorStop(0.55, "#0d0919"); bg.addColorStop(1, "#2a0d3f");
+    bg.addColorStop(0, P.a); bg.addColorStop(0.55, P.b); bg.addColorStop(1, P.c);
     rr(0, 0, W, H, 38); g.fillStyle = bg; g.fill();
     const glow = g.createRadialGradient(W * 0.75, H * 0.2, 10, W * 0.75, H * 0.2, 520);
-    glow.addColorStop(0, "rgba(244,114,182,0.28)"); glow.addColorStop(1, "rgba(244,114,182,0)");
+    glow.addColorStop(0, P.glow); glow.addColorStop(1, "rgba(244,114,182,0)");
     g.save(); rr(0, 0, W, H, 38); g.clip(); g.fillStyle = glow; g.fillRect(0, 0, W, H); g.restore();
 
     // نجوم صغيرة
@@ -140,8 +172,9 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     g.fillStyle = "#fff"; fit(holder, maxW, 46, 800); g.fillText(holder, R, 340);
 
     g.fillStyle = "#f6dc9b"; fit(c.date_label, maxW, 24, 700); g.fillText(c.date_label, R, 392);
-    g.fillStyle = "#b9aed1"; fit(c.venue, maxW, 22, 600); g.fillText(c.venue + " · " + seat, R, 428);
-    g.fillStyle = "#fb7185"; fit(c.note, 520, 17, 700); g.fillText(c.note, R, 478);
+    g.fillStyle = "#b9aed1"; fit(c.venue + " · " + seatLabel(), maxW, 22, 600); g.fillText(c.venue + " · " + seatLabel(), R, 428);
+    const foot = st.message ? "“" + st.message + "”" : c.note;
+    g.fillStyle = st.message ? "#f6dc9b" : "#fb7185"; fit(foot, 520, st.message ? 22 : 17, 700); g.fillText(foot, R, 478);
 
     // خط التقطيع + الكعب
     g.setLineDash([10, 9]); g.lineWidth = 2; g.strokeStyle = "rgba(246,220,155,0.6)";
@@ -198,4 +231,229 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       ui.busy(btn, false);
     }
   });
+
+  /* ================= تخصيص + مقاعد + سيت ليست + وضع المسرح ================= */
+  const redraw = RSU.debounce(() => draw(true), 120);
+  const save = RSU.debounce(async () => {
+    try { await RSU.data.concert.saveTicket({ theme: st.theme, message: st.message, setlist: st.setlist }); }
+    catch (e) { ui.toast(RSU.humanError(e), "error"); }
+  }, 700);
+
+  app.querySelector("#cx-themes").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-theme]");
+    if (!b) return;
+    st.theme = b.dataset.theme;
+    app.querySelectorAll("#cx-themes .btn").forEach((x) => x.classList.toggle("is-active", x === b));
+    draw(true); save();
+  });
+  app.querySelector("#t-msg").addEventListener("input", (e) => { st.message = e.target.value.trim(); redraw(); save(); });
+
+  /* ---- خريطة المقاعد ---- */
+  let taken = new Map();
+  const mapEl = app.querySelector("#cx-map");
+  function renderSeats() {
+    let h = "";
+    "ABCDEF".split("").forEach((row) => {
+      h += '<div class="cx-row"><b>' + row + "</b>";
+      for (let n = 1; n <= 10; n++) {
+        const id = row + "-" + n, mine = st.seat === id, off = taken.has(id) && !mine;
+        h += '<button type="button" class="cx-seat tier-' + row + (mine ? " is-mine" : "") + (off ? " is-taken" : "") + '" data-seat="' + id + '"' + (off ? " disabled" : "") +
+          ' aria-pressed="' + mine + '" aria-label="مقعد ' + id + " — " + TIER[row] + (off ? " (محجوز)" : "") + '">' + n + "</button>";
+      }
+      h += "</div>";
+    });
+    mapEl.innerHTML = h;
+    app.querySelector("#cx-seat-hint").textContent = st.seat
+      ? "مقعدك: " + st.seat + " (" + TIER[st.seat[0]] + ") — اضغطي عليه تاني لو عايزة تلغي الحجز."
+      : "الصفوف A-B VIP، و C-D Gold، و E-F عادي. اضغطي على مقعد فاضي.";
+  }
+  async function loadSeats() {
+    try { taken = new Map(((await RSU.data.concert.seats()) || []).map((x) => [x.seat, x.mine])); } catch (e) {}
+    renderSeats();
+  }
+  mapEl.addEventListener("click", async (e) => {
+    const b = e.target.closest("[data-seat]");
+    if (!b || b.disabled) return;
+    const id = b.dataset.seat;
+    try {
+      if (st.seat === id) { await RSU.data.concert.releaseSeat(); st.seat = null; }
+      else { await RSU.data.concert.claimSeat(id); st.seat = id; RSU.fx.burst(innerWidth / 2, innerHeight / 2, 18); ui.toast("اتحجز مقعدك " + id + " 🎟️", "success"); }
+    } catch (err) { ui.toast(RSU.humanError(err), "error"); }
+    await draw(true); loadSeats();
+  });
+
+  /* ---- السيت ليست ---- */
+  const MAX_SET = 12;
+  const songOf = (id) => allSongs.find((s) => s.id === id);
+  function renderSet() {
+    const pool = allSongs.filter((s) => !st.setlist.includes(s.id));
+    app.querySelector("#cx-pool").innerHTML = allSongs.length
+      ? (pool.map((s) => '<button type="button" class="cx-pick" data-add="' + s.id + '">' + RSU.icon("plus") + "<span>" + esc(s.title) + "</span></button>").join("") || '<p class="hint">ضفتي كل الأغاني 🎉</p>')
+      : '<p class="hint">مفيش أغاني لسه — الأدمن هيضيفها من لوحة الإدارة.</p>';
+    app.querySelector("#cx-count").textContent = "(" + st.setlist.length + "/" + MAX_SET + ")";
+    app.querySelector("#cx-list").innerHTML = st.setlist.map((id, i) => '<li><span class="cx-t">' + esc(songOf(id).title) + '</span><span class="cx-acts">' +
+      '<button type="button" class="btn btn-icon sm" data-act="play" data-i="' + i + '" aria-label="سماع">' + RSU.icon("play") + "</button>" +
+      '<button type="button" class="btn btn-icon sm" data-act="up" data-i="' + i + '" aria-label="فوق"' + (i === 0 ? " disabled" : "") + ">↑</button>" +
+      '<button type="button" class="btn btn-icon sm" data-act="down" data-i="' + i + '" aria-label="تحت"' + (i === st.setlist.length - 1 ? " disabled" : "") + ">↓</button>" +
+      '<button type="button" class="btn btn-icon sm" data-act="del" data-i="' + i + '" aria-label="شيل">' + RSU.icon("x") + "</button></span></li>").join("") ||
+      '<li class="hint">لسه فاضية — ضيفي أغاني من القايمة.</li>';
+    RSU.hydrateIcons(app);
+  }
+  app.querySelector("#cx-pool").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-add]");
+    if (!b) return;
+    if (st.setlist.length >= MAX_SET) return ui.toast("السيت ليست وصلت للحد الأقصى (" + MAX_SET + ").", "info");
+    st.setlist.push(b.dataset.add); renderSet(); save();
+  });
+  app.querySelector("#cx-list").addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act]");
+    if (!b) return;
+    const i = +b.dataset.i, L = st.setlist;
+    if (b.dataset.act === "play") return RSU.player.setQueue([songOf(L[i])], 0, true);
+    if (b.dataset.act === "del") L.splice(i, 1);
+    if (b.dataset.act === "up" && i > 0) [L[i - 1], L[i]] = [L[i], L[i - 1]];
+    if (b.dataset.act === "down" && i < L.length - 1) [L[i + 1], L[i]] = [L[i], L[i + 1]];
+    renderSet(); save();
+  });
+
+  /* ---- وضع المسرح: فردي / مضيفة / ضيفة ---- */
+  const EMO = ["❤️", "🔥", "👏", "🎶", "😍", "🎤"];
+  const songsOf = (ids) => ids.map(songOf).filter(Boolean);
+  function openStage(o) {
+    o = o || { role: "solo" };
+    const role = o.role, list = o.list || songsOf(st.setlist), room = role !== "solo";
+    if (!list.length) { ui.toast("ضيفي أغاني للسيت ليست الأول 🎶", "info"); app.querySelector("#cx-pool").scrollIntoView({ behavior: "smooth", block: "center" }); return; }
+    const ov = document.createElement("div");
+    ov.className = "stage theme-" + st.theme;
+    ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "وضع المسرح");
+    ov.innerHTML =
+      '<div class="stage-beams" aria-hidden="true"><i></i><i></i><i></i></div><div class="curtain l"></div><div class="curtain r"></div>' +
+      '<button type="button" class="btn btn-icon stage-x" aria-label="خروج من المسرح">' + RSU.icon("x") + "</button>" +
+      '<div class="stage-center"><h2 class="gold-text">' + esc(c.title) + "</h2><p>" + esc(a.name) + "</p>" +
+      (st.message && role !== "guest" ? '<p class="stage-msg">“' + esc(st.message) + "”</p>" : "") +
+      (room ? '<p class="stage-room">كود الغرفة: <b dir="ltr">' + esc(o.code) + '</b> <button type="button" class="btn btn-sm" id="sg-copy">نسخ الرابط</button></p><p class="hint" id="sg-who"></p>' : "") +
+      (role === "guest" ? '<p id="sg-wait">في انتظار المضيفة تبدأ الحفلة…</p>' : '<button type="button" class="btn btn-primary btn-lg" id="sg-start">ابدأ الحفلة</button>') +
+      '<div class="stage-count" id="sg-count" aria-live="assertive"></div></div>' +
+      '<div class="stage-now" hidden><h3 id="sg-title"></h3><ol id="sg-list">' + list.map((s) => '<li data-id="' + s.id + '">' + esc(s.title) + "</li>").join("") + "</ol>" +
+      (room ? '<div class="stage-emojis">' + EMO.map((e) => '<button type="button" class="btn btn-icon sm" data-emo="' + e + '" aria-label="رد فعل ' + e + '">' + e + "</button>").join("") + "</div>" : "") +
+      '<div class="row"><button type="button" class="btn btn-icon" id="sg-toggle" aria-label="تشغيل / إيقاف">' + RSU.icon("pause") + "</button>" +
+      (role !== "guest" ? '<button type="button" class="btn btn-icon" id="sg-next" aria-label="التالية">' + RSU.icon("skip-forward") + "</button>" : "") + "</div></div>";
+    document.body.appendChild(ov);
+    document.body.style.overflow = "hidden";
+    RSU.hydrateIcons(ov);
+    const q = (s) => ov.querySelector(s);
+    let timers = [], unsub = null, lastId = null, opened = false, rx = 0, hostLive = false, lastIdx = -1, lastPlaying = null;
+    const CD = RSU.data.concert;
+
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    function close() {
+      timers.forEach(clearInterval); if (unsub) unsub();
+      document.removeEventListener("keydown", onKey);
+      document.body.style.overflow = "";
+      if (room) CD.leave(o.code).catch(() => {});
+      if (RSU.player.state.playing) RSU.player.toggle();
+      ov.remove();
+    }
+    function openCurtains() {
+      if (opened) return; opened = true;
+      q(".stage-center").classList.add("up"); ov.classList.add("open"); q(".stage-now").hidden = false;
+      RSU.fx.burst(innerWidth / 2, innerHeight / 3, 40);
+    }
+    function floatEmoji(emoji, name) {
+      const s = document.createElement("span");
+      s.className = "stage-emo"; s.style.insetInlineStart = 8 + Math.random() * 80 + "%";
+      s.innerHTML = emoji + (name ? "<small>" + esc(name) + "</small>" : "");
+      ov.appendChild(s); setTimeout(() => s.remove(), 3200);
+    }
+    const pushSync = () => { const S = RSU.player.state; CD.sync(o.code, { idx: S.index, playing: !!S.playing, pos_ms: Math.round((S.time || 0) * 1000) }).catch(() => {}); };
+
+    document.addEventListener("keydown", onKey);
+    q(".stage-x").addEventListener("click", close);
+    if (q("#sg-copy")) q("#sg-copy").addEventListener("click", async () => {
+      const link = location.origin + location.pathname + "?room=" + o.code;
+      try { await navigator.clipboard.writeText(link); ui.toast("اتنسخ الرابط 🔗", "success"); } catch (e) { ui.toast("الكود: " + o.code, "info"); }
+    });
+    if (q("#sg-start")) { q("#sg-start").focus(); q("#sg-start").addEventListener("click", (e) => {
+      e.currentTarget.hidden = true;
+      RSU.player.setQueue(list, 0, true); // الضغطة دي (تفاعل المستخدم) بتسمح بالتشغيل التلقائي
+      let n = 3; const cnt = q("#sg-count"); cnt.textContent = n;
+      const t = setInterval(() => {
+        n--;
+        if (n > 0) { cnt.textContent = n; return; }
+        clearInterval(t); cnt.textContent = "";
+        openCurtains();
+        if (role === "host") { hostLive = true; const S = RSU.player.state; lastIdx = S.index; lastPlaying = !!S.playing; pushSync(); }
+      }, 900);
+      timers.push(t);
+    }); }
+    q("#sg-toggle").addEventListener("click", () => RSU.player.toggle());
+    if (q("#sg-next")) q("#sg-next").addEventListener("click", () => RSU.player.next());
+    ov.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-emo]");
+      if (!b) return;
+      floatEmoji(b.dataset.emo, "");
+      CD.react(o.code, b.dataset.emo).catch(() => {});
+    });
+
+    unsub = RSU.player.subscribe(() => {
+      const S = RSU.player.state, cur = S.queue[S.index];
+      if (cur) {
+        q("#sg-title").textContent = cur.title;
+        ov.querySelectorAll("#sg-list li").forEach((li) => li.classList.toggle("on", li.dataset.id === cur.id));
+        if (cur.id !== lastId) { lastId = cur.id; if (opened) RSU.fx.burst(innerWidth / 2, innerHeight / 3, 22); }
+      }
+      if (role === "host" && hostLive && (S.index !== lastIdx || !!S.playing !== lastPlaying)) { lastIdx = S.index; lastPlaying = !!S.playing; pushSync(); }
+    });
+
+    if (room) {
+      async function poll() {
+        let r;
+        try { r = await CD.room(o.code, rx); }
+        catch (e) { if (e.status === 404 || e.status === 403) { ui.toast("الحفلة خلصت.", "info"); close(); } return; }
+        q("#sg-who").textContent = "الحاضرين (" + r.members.length + "): " + r.members.join("، ");
+        r.reactions.forEach((x) => { rx = Math.max(rx, x.id); if (!x.mine) floatEmoji(x.emoji, x.name); });
+        if (role !== "guest") return;
+        if (r.state === "ended") { ui.toast("المضيفة خلّصت الحفلة 💜", "info"); close(); return; }
+        if (r.state !== "live") return;
+        openCurtains();
+        const S = RSU.player.state;
+        if (S.index !== r.idx || S.queue.length !== list.length) { RSU.player.setQueue(list, r.idx, r.playing); return; }
+        if (!!S.playing !== r.playing) { RSU.player.toggle(); return; }
+        if (r.playing && Math.abs((S.time || 0) * 1000 - r.pos_ms) > 4000) RSU.player.seek(r.pos_ms / 1000);
+      }
+      poll();
+      timers.push(setInterval(poll, 2500));
+      if (role === "host") timers.push(setInterval(() => { if (hostLive) pushSync(); }, 5000));
+    }
+  }
+
+  /* ---- حفلة مشتركة ---- */
+  const hostBtn = app.querySelector("#cx-host"), codeIn = app.querySelector("#cx-code");
+  hostBtn.addEventListener("click", async () => {
+    if (!st.setlist.length) return ui.toast("ضيفي أغاني للسيت ليست الأول 🎶", "info");
+    ui.busy(hostBtn, true, "بنجهّز الغرفة…");
+    try {
+      await RSU.data.concert.saveTicket({ theme: st.theme, message: st.message, setlist: st.setlist });
+      const { code } = await RSU.data.concert.createRoom();
+      openStage({ role: "host", code });
+    } catch (err) { ui.toast(RSU.humanError(err), "error"); }
+    finally { ui.busy(hostBtn, false); }
+  });
+  async function joinRoom(raw) {
+    const code = String(raw || "").trim().toUpperCase();
+    if (!/^[A-Z0-9]{5}$/.test(code)) return ui.toast("الكود لازم يكون ٥ حروف أو أرقام.", "error");
+    try {
+      const r = await RSU.data.concert.join(code);
+      const list = songsOf(r.setlist);
+      if (list.length !== r.setlist.length) return ui.toast("بعض أغاني الغرفة مش متاحة عندك.", "error");
+      openStage({ role: "guest", code, list });
+    } catch (err) { ui.toast(RSU.humanError(err), "error"); }
+  }
+  app.querySelector("#cx-join").addEventListener("click", () => joinRoom(codeIn.value));
+  codeIn.addEventListener("keydown", (e) => { if (e.key === "Enter") joinRoom(codeIn.value); });
+  const preset = new URLSearchParams(location.search).get("room");
+  if (preset) { codeIn.value = preset.toUpperCase().slice(0, 5); codeIn.scrollIntoView({ block: "center" }); }
+  app.querySelector("#cx-stage").addEventListener("click", () => openStage({ role: "solo" }));
+
+  renderSeats(); renderSet(); loadSeats();
 });
