@@ -386,7 +386,7 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     function close() {
       timers.forEach(clearInterval); if (unsub) unsub();
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", fitSinger);
+      window.removeEventListener("resize", onResize); cancelAnimationFrame(fitRaf);
       inerted.forEach((el) => el.removeAttribute("inert"));
       document.body.style.overflow = "";
       if (room) CD.leave(o.code).catch(() => {});
@@ -395,7 +395,8 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     }
     // المغني يقف فوق اللوحة بالظبط (من غير ما رجليه تستخبى ولا راسه تركب على الكود)
     function fitSinger() { const n = q(".stage-now"); if (n && !n.hidden) ov.style.setProperty("--panel-h", n.offsetHeight + 36 + "px"); }
-    window.addEventListener("resize", fitSinger);
+    let fitRaf = 0; const onResize = () => { cancelAnimationFrame(fitRaf); fitRaf = requestAnimationFrame(fitSinger); };
+    window.addEventListener("resize", onResize);
     function openCurtains() {
       if (opened) return; opened = true;
       q(".stage-center").classList.add("up"); ov.classList.add("open"); q(".stage-now").hidden = false;
@@ -452,16 +453,20 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       CD.react(o.code, b.dataset.emo).catch(() => {});
     });
 
+    // المشغل بيبلّغ كذا مرة في الثانية (مع كل تحديث للوقت) → ماننطّش على الـ DOM غير لما حاجة تتغيّر فعلًا
+    const titleEl = q("#sg-title"), liEls = [...ov.querySelectorAll("#sg-list li")], soundEl = q("#sg-sound");
+    let shownId = null, shownPlaying = null, shownSound = null;
     unsub = RSU.player.subscribe(() => {
-      const S = RSU.player.state, cur = S.queue[S.index];
-      if (cur) {
-        q("#sg-title").textContent = cur.title;
-        ov.querySelectorAll("#sg-list li").forEach((li) => li.classList.toggle("on", li.dataset.id === cur.id));
-        if (cur.id !== lastId) { lastId = cur.id; if (opened) RSU.fx.burst(innerWidth / 2, innerHeight / 3, 22); }
+      const S = RSU.player.state, cur = S.queue[S.index], playing = !!S.playing;
+      if (cur && cur.id !== shownId) {
+        shownId = cur.id;
+        titleEl.textContent = cur.title;
+        liEls.forEach((li) => li.classList.toggle("on", li.dataset.id === cur.id));
+        lastId = cur.id; if (opened) RSU.fx.burst(innerWidth / 2, innerHeight / 3, 22);
       }
-      ov.classList.toggle("is-playing", !!S.playing);
-      if (role === "guest" && q("#sg-sound")) q("#sg-sound").hidden = !(roomPlaying && !S.playing);
-      if (role === "host" && hostLive && (S.index !== lastIdx || !!S.playing !== lastPlaying)) { lastIdx = S.index; lastPlaying = !!S.playing; pushSync(); }
+      if (playing !== shownPlaying) { shownPlaying = playing; ov.classList.toggle("is-playing", playing); }
+      if (soundEl) { const hide = !(roomPlaying && !playing); if (hide !== shownSound) { shownSound = hide; soundEl.hidden = hide; } }
+      if (role === "host" && hostLive && (S.index !== lastIdx || playing !== lastPlaying)) { lastIdx = S.index; lastPlaying = playing; pushSync(); }
     });
 
     if (room) {
