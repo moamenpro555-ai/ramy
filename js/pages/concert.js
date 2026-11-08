@@ -368,13 +368,18 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       '<div class="stage-now" hidden><h3 id="sg-title"></h3><ol id="sg-list">' + list.map((s) => '<li data-id="' + s.id + '">' + esc(s.title) + "</li>").join("") + "</ol>" +
       '<form class="stage-fly" id="sg-fly" autocomplete="off"><input class="input" id="sg-fly-in" maxlength="80" placeholder="اكتبي تعليق وطيّريه على المسرح…" aria-label="تعليق" /><button type="submit" class="btn btn-pink">طيّر 🚀</button></form>' +
       (room ? '<div class="stage-emojis">' + EMO.map((e) => '<button type="button" class="btn btn-icon sm" data-emo="' + e + '" aria-label="رد فعل ' + e + '">' + e + "</button>").join("") + "</div>" : "") +
-      '<div class="row"><button type="button" class="btn btn-icon" id="sg-toggle" aria-label="تشغيل / إيقاف">' + RSU.icon("pause") + "</button>" +
-      (role !== "guest" ? '<button type="button" class="btn btn-icon" id="sg-next" aria-label="التالية">' + RSU.icon("skip-forward") + "</button>" : "") + "</div></div>";
+      (role === "guest"
+        ? '<p class="hint" style="margin:0 0 8px">' + RSU.icon("info") + " المضيفة هي اللي بتختار الأغاني وبتتحكم فيها، وهتتشغّل عندك أوتوماتيك.</p>" +
+          '<div class="row"><button type="button" class="btn btn-primary" id="sg-sound" hidden>' + RSU.icon("volume-2") + " اضغطي لتشغيل الصوت</button></div>"
+        : '<div class="row"><button type="button" class="btn btn-icon" id="sg-toggle" aria-label="تشغيل / إيقاف">' + RSU.icon("pause") + "</button>" +
+          '<button type="button" class="btn btn-icon" id="sg-next" aria-label="التالية">' + RSU.icon("skip-forward") + "</button></div>") + "</div>";
     document.body.appendChild(ov);
+    const inerted = [...document.body.children].filter((el) => el !== ov && el.id !== "yt-holder" && !/^(SCRIPT|STYLE|LINK)$/.test(el.tagName));
+    inerted.forEach((el) => el.setAttribute("inert", ""));
     document.body.style.overflow = "hidden";
     RSU.hydrateIcons(ov);
     const q = (s) => ov.querySelector(s);
-    let timers = [], unsub = null, lastId = null, opened = false, rx = 0, hostLive = false, lastIdx = -1, lastPlaying = null;
+    let timers = [], unsub = null, lastId = null, opened = false, rx = 0, hostLive = false, lastIdx = -1, lastPlaying = null, roomPlaying = false;
     const CD = RSU.data.concert;
 
     const onKey = (e) => { if (e.key === "Escape") close(); };
@@ -382,6 +387,7 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       timers.forEach(clearInterval); if (unsub) unsub();
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("resize", fitSinger);
+      inerted.forEach((el) => el.removeAttribute("inert"));
       document.body.style.overflow = "";
       if (room) CD.leave(o.code).catch(() => {});
       if (RSU.player.state.playing) RSU.player.toggle();
@@ -435,8 +441,10 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       }, 900);
       timers.push(t);
     }); }
-    q("#sg-toggle").addEventListener("click", () => RSU.player.toggle());
+    if (q("#sg-toggle")) q("#sg-toggle").addEventListener("click", () => RSU.player.toggle());
     if (q("#sg-next")) q("#sg-next").addEventListener("click", () => RSU.player.next());
+    // الضيفة ماتقدرش توقف ولا تغيّر حاجة؛ الزرار ده بيظهر بس لو المتصفح منع الصوت التلقائي
+    if (q("#sg-sound")) q("#sg-sound").addEventListener("click", () => { if (roomPlaying && !RSU.player.state.playing) RSU.player.toggle(); });
     ov.addEventListener("click", (e) => {
       const b = e.target.closest("[data-emo]");
       if (!b) return;
@@ -452,6 +460,7 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
         if (cur.id !== lastId) { lastId = cur.id; if (opened) RSU.fx.burst(innerWidth / 2, innerHeight / 3, 22); }
       }
       ov.classList.toggle("is-playing", !!S.playing);
+      if (role === "guest" && q("#sg-sound")) q("#sg-sound").hidden = !(roomPlaying && !S.playing);
       if (role === "host" && hostLive && (S.index !== lastIdx || !!S.playing !== lastPlaying)) { lastIdx = S.index; lastPlaying = !!S.playing; pushSync(); }
     });
 
@@ -471,6 +480,7 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
         if (r.state === "ended") { ui.toast("المضيفة خلّصت الحفلة 💜", "info"); close(); return; }
         if (r.state !== "live") return;
         openCurtains();
+        roomPlaying = !!r.playing;
         const S = RSU.player.state;
         if (S.index !== r.idx || S.queue.length !== list.length) { RSU.player.setQueue(list, r.idx, r.playing); return; }
         if (!!S.playing !== r.playing) { RSU.player.toggle(); return; }
