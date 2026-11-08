@@ -324,10 +324,11 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
       '<ellipse cx="100" cy="288" rx="70" ry="9" fill="rgba(0,0,0,0.45)"/>' +
       '<g class="sg-body">' +
       '<path d="M78 170 L72 282 H92 L100 200 L108 282 H128 L122 170 Z" fill="#14101f"/>' +
-      '<path d="M70 98 Q100 84 130 98 L138 178 H62 Z" fill="#1d1230" stroke="#e6c068" stroke-width="2"/>' +
-      '<path d="M100 92 L100 178" stroke="#e6c068" stroke-width="2" opacity="0.7"/>' +
-      '<g class="sg-arm-l"><path d="M72 104 Q48 138 62 168" fill="none" stroke="#1d1230" stroke-width="15" stroke-linecap="round"/><circle cx="62" cy="170" r="8" fill="#e8b48f"/></g>' +
-      '<g class="sg-arm-r"><path d="M128 104 Q146 124 120 80" fill="none" stroke="#1d1230" stroke-width="15" stroke-linecap="round"/><circle cx="119" cy="76" r="8" fill="#e8b48f"/>' +
+      '<path d="M70 98 Q100 84 130 98 L138 178 H62 Z" fill="#d9c7a6" stroke="#b39a6b" stroke-width="2"/>' +
+      '<path d="M88 94 L100 150 L112 94 Z" fill="#111"/>' +
+      '<path d="M88 94 L100 150 M112 94 L100 150" stroke="#b39a6b" stroke-width="2" opacity="0.8"/>' +
+      '<g class="sg-arm-l"><path d="M72 104 Q48 138 62 168" fill="none" stroke="#d9c7a6" stroke-width="15" stroke-linecap="round"/><circle cx="62" cy="170" r="8" fill="#e8b48f"/></g>' +
+      '<g class="sg-arm-r"><path d="M128 104 Q146 124 120 80" fill="none" stroke="#d9c7a6" stroke-width="15" stroke-linecap="round"/><circle cx="119" cy="76" r="8" fill="#e8b48f"/>' +
       '<rect x="114" y="52" width="9" height="22" rx="4" fill="#2a2a38" stroke="#e6c068" stroke-width="1.5"/><circle cx="118.5" cy="48" r="8" fill="#9ca3af"/></g>' +
       (img
         ? '<g class="sg-head"><defs><clipPath id="sg-clip"><circle cx="100" cy="62" r="34"/></clipPath></defs>' +
@@ -376,7 +377,7 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     ov.className = "stage theme-" + st.theme;
     ov.setAttribute("role", "dialog"); ov.setAttribute("aria-modal", "true"); ov.setAttribute("aria-label", "وضع المسرح");
     ov.innerHTML =
-      '<div class="stage-beams" aria-hidden="true"><i></i><i></i><i></i></div>' + singerSVG(a.name, imgUrl) + '<div class="curtain l"></div><div class="curtain r"></div>' +
+      '<div class="stage-beams" aria-hidden="true"><i></i><i></i><i></i></div>' + singerSVG(a.name, "img/singer-face.jpg") + '<div class="curtain l"></div><div class="curtain r"></div>' +
       '<button type="button" class="btn btn-icon stage-x" aria-label="خروج من المسرح">' + RSU.icon("x") + "</button>" +
       '<div class="stage-center"><h2 class="gold-text">' + esc(c.title) + "</h2><p>" + esc(a.name) + "</p>" +
       (st.message && role !== "guest" ? '<p class="stage-msg">“' + esc(st.message) + "”</p>" : "") +
@@ -399,14 +400,19 @@ RSU.boot({ page: "concert" }, async function (ctx, app) {
     function close() {
       timers.forEach(clearInterval); if (unsub) unsub();
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", fitSinger);
       document.body.style.overflow = "";
       if (room) CD.leave(o.code).catch(() => {});
       if (RSU.player.state.playing) RSU.player.toggle();
       ov.remove();
     }
+    // المغني يقف فوق اللوحة بالظبط (من غير ما رجليه تستخبى ولا راسه تركب على الكود)
+    function fitSinger() { const n = q(".stage-now"); if (n && !n.hidden) ov.style.setProperty("--panel-h", n.offsetHeight + 36 + "px"); }
+    window.addEventListener("resize", fitSinger);
     function openCurtains() {
       if (opened) return; opened = true;
       q(".stage-center").classList.add("up"); ov.classList.add("open"); q(".stage-now").hidden = false;
+      fitSinger();
       RSU.fx.burst(innerWidth / 2, innerHeight / 3, 40);
     }
     function floatEmoji(emoji, name) {

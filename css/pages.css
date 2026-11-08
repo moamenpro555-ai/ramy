@@ -255,7 +255,7 @@
 .stage-msg { color: var(--gold-2); font-weight: 700; } .stage-count { font: 800 6rem var(--font-display); color: var(--gold-2); min-height: 7rem; }
 .stage-center.up { transform: translateY(-38vh) scale(0.5); opacity: 0.85; }
 .stage-now { position: absolute; z-index: 4; bottom: 28px; inset-inline: 0; margin-inline: auto; width: min(92vw, 460px); padding: 18px; border-radius: var(--radius); background: rgba(7,5,13,0.6); backdrop-filter: blur(12px); border: 1px solid var(--border-strong); }
-.stage-now h3 { margin: 0 0 10px; color: var(--gold-2); } .stage-now ol { text-align: start; margin: 0 0 12px; padding-inline-start: 22px; max-height: 24vh; overflow: auto; color: var(--text-dim); }
+.stage-now h3 { margin: 0 0 10px; color: var(--gold-2); } .stage-now ol { text-align: start; margin: 0 0 12px; padding-inline-start: 22px; max-height: 15vh; overflow: auto; color: var(--text-dim); }
 .stage-now li.on { color: var(--pink); font-weight: 800; } .stage-now .row { display: flex; gap: 10px; justify-content: center; }
 .stage-x { position: absolute; z-index: 6; top: 16px; inset-inline-end: 16px; }
 @media (max-width: 640px) { .cx-set-grid { grid-template-columns: 1fr; } .cx-seat { width: 27px; height: 30px; font-size: 0.7rem; } .cx-map { gap: 5px; } .cx-row { gap: 4px; } }
@@ -272,9 +272,9 @@
 @media (prefers-reduced-motion: reduce) { .stage-emo { animation-duration: 0.01s; } }
 
 /* ---------- Concert: المغني + تعليقات "طيّر" ---------- */
-.stage-singer { position: absolute; z-index: 2; inset-inline: 0; margin-inline: auto; width: min(46vw, 190px); bottom: clamp(250px, 40vh, 400px); text-align: center; pointer-events: none; opacity: 0; transition: opacity 1.4s 0.6s; }
+.stage-singer { position: absolute; z-index: 2; inset-inline: 0; margin-inline: auto; width: fit-content; bottom: var(--panel-h, 300px); text-align: center; pointer-events: none; opacity: 0; transition: opacity 1.4s 0.6s; }
 .stage.open .stage-singer { opacity: 1; }
-.stage-singer svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 0 22px rgba(var(--sg), 0.55)); }
+.stage-singer svg { height: clamp(110px, calc(100vh - var(--panel-h, 300px) - 400px), 300px); width: auto; aspect-ratio: 2 / 3; display: block; margin-inline: auto; filter: drop-shadow(0 0 22px rgba(var(--sg), 0.55)); }
 .stage-singer-name { margin-top: 2px; font: 700 0.8rem var(--font); color: var(--gold-2); text-shadow: 0 0 10px rgba(0,0,0,0.8); }
 .stage-singer .note { position: absolute; top: 18%; font-size: 1.5rem; color: var(--gold-2); opacity: 0; }
 .stage-singer .n1 { inset-inline-start: 4%; } .stage-singer .n2 { inset-inline-end: 2%; } .stage-singer .n3 { inset-inline-end: 14%; top: 6%; }
@@ -296,5 +296,5 @@
 .stage-fly-msg { position: absolute; z-index: 5; top: 0; left: 0; max-width: min(70vw, 280px); padding: 8px 14px; border-radius: 18px; pointer-events: none; opacity: 0; text-align: start; line-height: 1.5;
   background: hsla(var(--h, 300), 70%, 22%, 0.82); border: 1px solid hsla(var(--h, 300), 85%, 70%, 0.7); box-shadow: 0 0 18px hsla(var(--h, 300), 85%, 60%, 0.45); color: #fff; font-weight: 700; word-break: break-word; }
 .stage-fly-msg small { display: block; font: 600 0.68rem var(--font); color: hsl(var(--h, 300), 90%, 82%); }
-@media (max-width: 640px) { .stage-singer { width: 34vw; bottom: clamp(290px, 44vh, 400px); } }
+@media (max-width: 640px) { .stage-singer svg { height: clamp(100px, calc(100vh - var(--panel-h, 300px) - 300px), 220px); } }
 @media (prefers-reduced-motion: reduce) { .stage.is-playing .sg-body, .stage.is-playing .sg-head, .stage.is-playing .sg-arm-l, .stage.is-playing .sg-mouth, .stage.is-playing .stage-singer .note { animation: none; } .stage-fly-msg { opacity: 1; } }
