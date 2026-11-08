@@ -11,6 +11,7 @@
   let yt = null, ytReady = false, ytApiPromise = null;
   let audio = null;
   let tick = null, lastPersist = 0, dragging = false;
+  let wantPlay = false, bgResumes = 0; // المستخدمة عايزة الأغنية شغّالة (علشان نكمّلها لو الشاشة اتقفلت)
 
   const cur = () => S.queue[S.index] || null;
   const srcOf = (s) => (s && (s.source || RSU.songSource(s.play_url))) || "external";
@@ -18,6 +19,7 @@
   /* ---------- State notifications ---------- */
   function emit() {
     render();
+    syncSession();
     subs.forEach((fn) => { try { fn(S); } catch (e) {} });
   }
 
@@ -39,6 +41,7 @@
     }
     if (yt && ytReady) { try { yt.stopVideo(); } catch (e) {} }
     S.playing = false;
+    wantPlay = false;
   }
 
   function loadYTApi() {
@@ -58,7 +61,13 @@
 
   function onYTState(e) {
     const st = e.data;
-    if (st === 1 || st === 3) { S.playing = true; S.note = ""; }
+    if (st === 1 || st === 3) { S.playing = true; S.note = ""; wantPlay = true; if (st === 1) bgResumes = 0; }
+    else if (st === 2 && document.hidden && wantPlay && bgResumes < 6) {
+      // المتصفح وقّف الفيديو لما الشاشة اتقفلت: نحاول نكمّله (best-effort — مش مضمون على كل الأجهزة)
+      bgResumes++;
+      setTimeout(() => { try { if (yt && ytReady && wantPlay) yt.playVideo(); } catch (e) {} }, 350);
+      return;
+    }
     else if (st === 2 || st === 5) S.playing = false;
     else if (st === 0) { S.playing = false; next(true); return; }
     emit();
@@ -167,11 +176,13 @@
     if (S.engine === "external") { window.open(RSU.safeUrl(s.play_url), "_blank", "noopener"); return; }
     if (S.engine === "youtube") {
       if (!yt || !ytReady) return;
-      if (S.playing) yt.pauseVideo(); else yt.playVideo();
+      if (S.playing) { wantPlay = false; yt.pauseVideo(); } else { wantPlay = true; yt.playVideo(); }
     } else if (S.engine === "audio" && audio) {
-      if (S.playing) audio.pause(); else audio.play().catch(() => {});
+      if (S.playing) { wantPlay = false; audio.pause(); } else { wantPlay = true; audio.play().catch(() => {}); }
     }
   }
+  const play = () => { if (!S.playing) toggle(); };
+  const pause = () => { if (S.playing) toggle(); };
 
   function step(dir, auto) {
     const n = S.queue.length;
@@ -212,10 +223,25 @@
         title: s.title, artist: "رامي صبري", album: s.album || "",
         artwork: s.cover_url && RSU.safeUrl(s.cover_url) ? [{ src: RSU.safeUrl(s.cover_url) }] : []
       });
-      navigator.mediaSession.setActionHandler("play", toggle);
-      navigator.mediaSession.setActionHandler("pause", toggle);
-      navigator.mediaSession.setActionHandler("nexttrack", () => next(false));
-      navigator.mediaSession.setActionHandler("previoustrack", prev);
+      const h = (name, fn) => { try { navigator.mediaSession.setActionHandler(name, fn); } catch (e) {} };
+      h("play", play);
+      h("pause", pause);
+      h("nexttrack", () => next(false));
+      h("previoustrack", prev);
+      h("seekto", (d) => { if (d && typeof d.seekTime === "number") seek(d.seekTime); });
+      h("seekbackward", (d) => seek(Math.max(0, S.time - ((d && d.seekOffset) || 10))));
+      h("seekforward", (d) => seek(Math.min(S.duration || 1e9, S.time + ((d && d.seekOffset) || 10))));
+    } catch (e) {}
+  }
+
+  /** بيحدّث حالة التشغيل وموضعها على شاشة القفل / إشعارات الموبايل */
+  function syncSession() {
+    if (!("mediaSession" in navigator)) return;
+    try {
+      navigator.mediaSession.playbackState = !cur() ? "none" : S.playing ? "playing" : "paused";
+      if (S.duration > 0 && navigator.mediaSession.setPositionState) {
+        navigator.mediaSession.setPositionState({ duration: S.duration, position: Math.min(S.time || 0, S.duration), playbackRate: 1 });
+      }
     } catch (e) {}
   }
 
